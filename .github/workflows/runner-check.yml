@@ -1,0 +1,42 @@
+name: TBHClock - Runner Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/runner-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runner-check:
+    name: Validate TBH-CLOCK-WIN01
+    runs-on: [self-hosted, Windows, X64, tbh-clock]
+    timeout-minutes: 5
+
+    steps:
+      - name: Runner identity
+        shell: powershell
+        run: |
+          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
+          if ($env:RUNNER_NAME -ne "TBH-CLOCK-WIN01") {
+            throw "Wrong runner: $env:RUNNER_NAME"
+          }
+          Write-Host "RUNNER_IDENTITY=PASS"
+
+      - name: Tool check
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          git --version
+          node --version
+          npm --version
+          Write-Host "GIT_NODE_NPM=PASS"
+
+      - name: Final result
+        shell: powershell
+        run: |
+          Write-Host "TBHCLOCK_WINDOWS_RUNNER=PASS"
+          Write-Host "DEPLOY=OFF"
