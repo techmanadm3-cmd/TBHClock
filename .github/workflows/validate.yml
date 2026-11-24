@@ -44,6 +44,7 @@ jobs:
           node --check src\googleSheets.js || exit /b 23
           node --check public\app.js || exit /b 24
           node --check tests\attendance.test.js || exit /b 25
+          node --check tests\frontend.test.js || exit /b 26
           echo JS_SYNTAX=PASS
 
       - name: Attendance tests

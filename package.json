@@ -5,7 +5,9 @@
   "description": "VPS2 HR operations web app using Google Sheets as the primary database",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/attendance.test.js"
+    "test": "node tests/attendance.test.js && node tests/frontend.test.js"
   },
-  "engines": {"node": ">=20"}
+  "engines": {
+    "node": ">=20"
+  }
 }
