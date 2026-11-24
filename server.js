@@ -90,7 +90,7 @@ async function routeApi(req, res, url) {
 
   if (req.method === 'POST' && url.pathname === '/api/clock') {
     const body = await readJson(req);
-    const allowed = new Set(['In','Out','Lunch Out','Lunch In']);
+    const allowed = new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
     if (!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
     const staffRows = await loadStaff();
     const staff = staffRows.find(s => s.Key === user.staffCode);
@@ -116,7 +116,7 @@ function staticFile(req,res,url) {
   const file = path.join(__dirname,'public',rel);
   if (!file.startsWith(path.join(__dirname,'public')) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('Not found'); }
   const ext = path.extname(file);
-  const types={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
+  const types={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.png':'image/png'};
   res.writeHead(200,{'content-type':types[ext]||'application/octet-stream','cache-control':'no-store'});
   fs.createReadStream(file).pipe(res);
 }

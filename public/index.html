@@ -1,20 +1,170 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TBH HR Operations</title><link rel="stylesheet" href="/styles.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#075aaa">
+  <title>TBH HR</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
 <body>
-<div id="login" class="center-card">
-  <div class="brand">TBH HR</div><h1>Staff HR Operations</h1><p>VPS2 web app · Google Sheets database</p>
-  <input id="username" placeholder="Username" autocomplete="username"><input id="password" type="password" placeholder="Password" autocomplete="current-password">
-  <button id="loginBtn">Sign in</button><div id="loginMsg" class="error"></div>
-</div>
-<div id="app" class="hidden">
-  <aside><div class="brand">TBH HR</div><button class="nav active">Attendance</button><button class="nav disabled">Leave <span>Next</span></button><button class="nav disabled">OT <span>Next</span></button><button class="nav disabled">Claims <span>Next</span></button><div class="aside-bottom"><div id="userName"></div><small id="userRole"></small><button id="logoutBtn" class="ghost">Logout</button></div></aside>
-  <main>
-    <header><div><h1>Attendance</h1><p id="dayLabel">Daily attendance operations</p></div><div class="header-actions"><input id="dateInput" type="date"><button id="refreshBtn" class="secondary">Refresh</button></div></header>
-    <section class="clock-panel"><div><strong>Quick Clock</strong><span>Write directly to the existing Clock sheet.</span></div><div class="clock-actions"><button data-clock="In">Clock In</button><button data-clock="Lunch Out" class="secondary">Lunch Out</button><button data-clock="Lunch In" class="secondary">Lunch In</button><button data-clock="Out">Clock Out</button></div></section>
-    <section id="kpis" class="kpis"></section>
-    <section class="card"><div class="table-head"><div><h2>Daily attendance</h2><p id="resultMeta"></p></div><input id="search" placeholder="Search staff / department"></div><div class="table-wrap"><table><thead><tr><th>Staff</th><th>Department</th><th>Schedule</th><th>In</th><th>Lunch</th><th>Out</th><th>Late</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<div id="toast" class="toast hidden"></div>
+
+<section id="login" class="login-shell">
+  <div class="login-panel">
+    <div class="login-brand">
+      <img src="/tbh-logo.webp" alt="TBH">
+      <div><strong>TBH HR</strong><span>Staff Operations Portal</span></div>
+    </div>
+    <div class="login-copy">
+      <span class="eyebrow">TBH INDUSTRIES</span>
+      <h1>Welcome back</h1>
+      <p>Sign in to manage attendance and HR operations.</p>
+    </div>
+    <label class="field-label" for="username">Username</label>
+    <input id="username" class="control" placeholder="Enter username" autocomplete="username">
+    <label class="field-label" for="password">Password</label>
+    <input id="password" class="control" type="password" placeholder="Enter password" autocomplete="current-password">
+    <button id="loginBtn" class="btn primary login-btn">Sign in</button>
+    <div id="loginMsg" class="error"></div>
+  </div>
+</section>
+
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button id="menuBtn" class="icon-btn menu-btn" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+      <img class="top-logo" src="/tbh-logo.webp" alt="TBH">
+      <div class="top-separator"></div>
+      <div class="app-title">TBH HR</div>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn muted-btn" title="Notifications">◔</button>
+      <button class="icon-btn muted-btn" title="Help">?</button>
+      <div class="profile-chip">
+        <span id="avatar" class="avatar">T</span>
+        <span class="profile-text"><strong id="userName"></strong><small id="userRole"></small></span>
+        <button id="logoutBtn" class="profile-logout">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <aside id="sidebar" class="sidebar">
+    <nav class="nav-groups">
+      <div class="nav-group">
+        <div class="nav-heading">CORE HR</div>
+        <button class="nav-item coming"><span>✓</span>Approval Center</button>
+        <button class="nav-item" data-view="report"><span>▥</span>Report</button>
+        <button class="nav-item coming"><span>◴</span>Overtime Submit</button>
+        <button class="nav-item coming"><span>⌁</span>Rest</button>
+        <button class="nav-item coming"><span>□</span>Leave</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-heading">ATTENDANCE &amp; TIME</div>
+        <button class="nav-item active" data-view="clock"><span>◷</span>Clock</button>
+        <button class="nav-item coming"><span>◫</span>Time Off</button>
+        <button class="nav-item coming"><span>▦</span>Actual WD</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-heading">PEOPLE &amp; DOCUMENTS</div>
+        <button class="nav-item coming"><span>✎</span>Memo</button>
+        <button class="nav-item coming"><span>▤</span>Handbook</button>
+        <button class="nav-item coming"><span>♙</span>Staff List</button>
+        <button class="nav-item coming"><span>◇</span>SOP</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-heading">HR FORMS</div>
+        <button class="nav-item coming"><span>✚</span>Medical Claim Form</button>
+        <button class="nav-item coming"><span>$</span>Adv. Salary Form</button>
+        <button class="nav-item coming"><span>＋</span>Recruitment Requisition</button>
+        <button class="nav-item coming"><span>△</span>Warning Letter</button>
+        <button class="nav-item coming"><span>☵</span>Suggestion</button>
+      </div>
+      <div class="nav-group">
+        <div class="nav-heading">SYSTEM</div>
+        <button class="nav-item coming"><span>ⓘ</span>About</button>
+        <button class="nav-item coming"><span>▢</span>Feedback</button>
+        <button class="nav-item coming"><span>▦</span>App Gallery</button>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="workspace">
+    <section id="clockView" class="view">
+      <div class="page-hero">
+        <div>
+          <div class="page-title-line"><span class="page-icon">◷</span><h1>Clock</h1></div>
+          <p>Record your working time (check in, check out, lunch, outstation, etc.).</p>
+        </div>
+      </div>
+
+      <section class="clock-card">
+        <div class="form-grid">
+          <label>Date <b>*</b></label>
+          <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"><span>▣</span></div>
+
+          <label>Staff Name <b>*</b></label>
+          <select id="clockStaff" class="control"></select>
+
+          <label>Type <b>*</b></label>
+          <div id="typeGrid" class="type-grid">
+            <button type="button" data-type="In">In</button>
+            <button type="button" data-type="Lunch Out">Lunch Out</button>
+            <button type="button" data-type="Lunch In">Lunch In</button>
+            <button type="button" data-type="Out">Out</button>
+            <button type="button" data-type="Extra Out">Extra Out</button>
+            <button type="button" data-type="Extra In">Extra In</button>
+            <button type="button" data-type="Outstation Out">Outstation Out</button>
+            <button type="button" data-type="Outstation In">Outstation In</button>
+            <button type="button" data-type="Overnight Out" class="wide-mobile">Overnight Out</button>
+          </div>
+
+          <label>Clock Image</label>
+          <div class="upload-box">
+            <input id="clockImage" type="file" accept="image/*" capture="environment">
+            <div class="camera-icon">▣</div>
+            <strong id="uploadTitle">Upload Clock Image</strong>
+            <span id="uploadHint">Tap to select or take a photo</span>
+            <small>Photo preview only in this build</small>
+          </div>
+
+          <label>Adjustment <b>*</b></label>
+          <div class="segmented" id="adjustment">
+            <button type="button" data-value="Yes">Yes</button>
+            <button type="button" data-value="No" class="selected">No</button>
+          </div>
+
+          <label>Check In</label>
+          <input id="checkInStatus" class="control readonly" value="Missing In" readonly>
+
+          <label>Check Out</label>
+          <input id="checkOutStatus" class="control readonly" value="Missing Out" readonly>
+        </div>
+        <div class="form-actions">
+          <button id="cancelClockBtn" class="btn outline">Cancel</button>
+          <button id="saveClockBtn" class="btn primary save-btn"><span>▣</span>Save</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="reportView" class="view hidden">
+      <div class="page-hero report-hero">
+        <div>
+          <div class="page-title-line"><span class="page-icon">▥</span><h1>Attendance Report</h1></div>
+          <p id="dayLabel">Daily attendance operations</p>
+        </div>
+        <div class="report-actions"><input id="dateInput" class="control" type="date"><button id="refreshBtn" class="btn outline">Refresh</button></div>
+      </div>
+      <section id="kpis" class="kpis"></section>
+      <section class="report-card">
+        <div class="table-head"><div><h2>Daily attendance</h2><p id="resultMeta"></p></div><input id="search" class="control" placeholder="Search staff / department"></div>
+        <div class="table-wrap"><table><thead><tr><th>Staff</th><th>Department</th><th>Schedule</th><th>In</th><th>Lunch</th><th>Out</th><th>Late</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+      </section>
+    </section>
   </main>
+  <div id="scrim" class="scrim hidden"></div>
 </div>
+
 <script src="/app.js"></script>
-</body></html>
+</body>
+</html>
