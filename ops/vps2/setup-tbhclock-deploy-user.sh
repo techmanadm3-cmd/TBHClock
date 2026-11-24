@@ -11,7 +11,14 @@ chmod 600 /home/tbhclock-github/.ssh/authorized_keys
 
 install -m 755 ops/vps2/tbhclock-gateway.sh /usr/local/sbin/tbhclock-gateway
 install -m 755 ops/vps2/tbhclock-deploy.sh /usr/local/sbin/tbhclock-deploy
-printf '%s\n' 'tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-deploy *' > /etc/sudoers.d/tbhclock-github
+install -m 755 ops/vps2/tbhclock-runtime-bootstrap.sh /usr/local/sbin/tbhclock-runtime-bootstrap
+install -m 755 ops/vps2/tbhclock-runtime-check.sh /usr/local/sbin/tbhclock-runtime-check
+
+cat > /etc/sudoers.d/tbhclock-github <<'EOF'
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-deploy *
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-bootstrap
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-check
+EOF
 chmod 440 /etc/sudoers.d/tbhclock-github
 visudo -cf /etc/sudoers.d/tbhclock-github
 
