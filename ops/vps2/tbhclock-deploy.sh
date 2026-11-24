@@ -38,7 +38,7 @@ docker compose -p tbhclock --env-file "$SHARED/.env" up -d --build --remove-orph
 ok=0
 i=0
 while [ "$i" -lt 20 ]; do
-  if curl -fsS "http://127.0.0.1:18080/api/health?deep=1" >/dev/null 2>&1; then ok=1; break; fi
+  if curl -fsS "http://127.0.0.1:18180/api/health?deep=1" >/dev/null 2>&1; then ok=1; break; fi
   i=$((i+1))
   sleep 2
 done
