@@ -15,6 +15,8 @@ PREVIOUS=""
 mkdir -p "$RELEASES" "$SHARED/secrets"
 if [ -f "$ACTIVE_FILE" ]; then PREVIOUS=$(cat "$ACTIVE_FILE" || true); fi
 
+/usr/local/sbin/tbhclock-runtime-check
+
 if [ ! -d "$REPO/.git" ]; then
   rm -rf "$REPO"
   git clone https://github.com/techmanadm3-cmd/TBHClock.git "$REPO"
@@ -27,9 +29,6 @@ rm -rf "$RELEASE"
 mkdir -p "$RELEASE"
 git -C "$REPO" archive "$sha" | tar -x -C "$RELEASE"
 
-[ -f "$SHARED/.env" ] || { echo "HOLD: $SHARED/.env missing" >&2; exit 71; }
-[ -f "$SHARED/secrets/google-service-account.json" ] || { echo "HOLD: Google service account JSON missing" >&2; exit 72; }
-
 ln -sfn "$SHARED/.env" "$RELEASE/.env"
 ln -sfn "$SHARED/secrets" "$RELEASE/secrets"
 
@@ -39,7 +38,7 @@ docker compose -p tbhclock --env-file "$SHARED/.env" up -d --build --remove-orph
 ok=0
 i=0
 while [ "$i" -lt 20 ]; do
-  if curl -fsS http://127.0.0.1:18080/api/health >/dev/null 2>&1; then ok=1; break; fi
+  if curl -fsS "http://127.0.0.1:18080/api/health?deep=1" >/dev/null 2>&1; then ok=1; break; fi
   i=$((i+1))
   sleep 2
 done
