@@ -64,6 +64,7 @@ jobs:
           git ls-files --error-unmatch secrets/google-service-account.json >nul 2>&1
           if %ERRORLEVEL%==0 exit /b 44
           echo SECRET_SAFETY=PASS
+          exit /b 0
 
       - name: Final validate result
         shell: cmd
