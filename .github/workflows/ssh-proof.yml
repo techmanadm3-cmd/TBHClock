@@ -1,0 +1,46 @@
+name: TBHClock - VPS2 SSH Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ssh-proof.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ssh-proof:
+    name: Verify TBH-CLOCK-WIN01 to VPS2 gateway
+    runs-on: [self-hosted, Windows, X64, tbh-clock, vps2-deploy]
+    timeout-minutes: 5
+
+    steps:
+      - name: Runner identity
+        shell: cmd
+        run: |
+          @echo off
+          if /I not "%RUNNER_NAME%"=="TBH-CLOCK-WIN01" exit /b 11
+          echo RUNNER_IDENTITY=PASS
+
+      - name: Verify local deploy files
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          if not exist "%ROOT%\id_ed25519" exit /b 21
+          if not exist "%ROOT%\known_hosts" exit /b 22
+          if not exist "%ROOT%\deploy.env" exit /b 23
+          echo LOCAL_SSH_FILES=PASS
+
+      - name: VPS2 gateway ping
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" ping || exit /b 31
+          echo VPS2_GATEWAY_PING=PASS
