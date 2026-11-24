@@ -1,0 +1,16 @@
+services:
+  hr-web:
+    build: .
+    container_name: tbh-hr-web
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      APP_SECRET: ${APP_SECRET}
+      GOOGLE_SPREADSHEET_ID: ${GOOGLE_SPREADSHEET_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
+      APP_TIMEZONE: Asia/Kuala_Lumpur
+      CLOCK_CACHE_SECONDS: 120
+    volumes:
+      - ./secrets/google-service-account.json:/run/secrets/google-service-account.json:ro
+    ports:
+      - "127.0.0.1:18080:8080"

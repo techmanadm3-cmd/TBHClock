@@ -1,0 +1,11 @@
+{
+  "name": "tbh-hr-webapp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VPS2 HR operations web app using Google Sheets as the primary database",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/attendance.test.js"
+  },
+  "engines": {"node": ">=20"}
+}

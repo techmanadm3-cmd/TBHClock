@@ -1,0 +1,71 @@
+name: TBHClock - Validate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - ".github/workflows/runner-check.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tbhclock-validate-main
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate source on TBH-CLOCK-WIN01
+    runs-on: [self-hosted, Windows, X64, tbh-clock]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Runner identity and toolchain
+        shell: cmd
+        run: |
+          @echo off
+          if /I not "%RUNNER_NAME%"=="TBH-CLOCK-WIN01" exit /b 11
+          git --version || exit /b 12
+          node --version || exit /b 13
+          npm --version || exit /b 14
+          where ssh.exe || exit /b 15
+          echo RUNNER_TOOLCHAIN=PASS
+
+      - name: JavaScript syntax
+        shell: cmd
+        run: |
+          @echo off
+          node --check server.js || exit /b 21
+          node --check src\attendance.js || exit /b 22
+          node --check src\googleSheets.js || exit /b 23
+          node --check public\app.js || exit /b 24
+          node --check tests\attendance.test.js || exit /b 25
+          echo JS_SYNTAX=PASS
+
+      - name: Attendance tests
+        shell: cmd
+        run: |
+          @echo off
+          npm test || exit /b 31
+          echo ATTENDANCE_TESTS=PASS
+
+      - name: Secret safety
+        shell: cmd
+        run: |
+          @echo off
+          if exist .env exit /b 41
+          if exist secrets\google-service-account.json exit /b 42
+          git grep -n "BEGIN PRIVATE KEY" >nul 2>&1
+          if %ERRORLEVEL%==0 exit /b 43
+          echo SECRET_SAFETY=PASS
+
+      - name: Final validate result
+        shell: cmd
+        run: |
+          @echo off
+          echo TBHCLOCK_VALIDATE=PASS
+          echo DEPLOY_GATE=READY

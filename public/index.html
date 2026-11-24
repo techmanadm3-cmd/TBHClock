@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TBH HR Operations</title><link rel="stylesheet" href="/styles.css"></head>
+<body>
+<div id="login" class="center-card">
+  <div class="brand">TBH HR</div><h1>Staff HR Operations</h1><p>VPS2 web app · Google Sheets database</p>
+  <input id="username" placeholder="Username" autocomplete="username"><input id="password" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="loginBtn">Sign in</button><div id="loginMsg" class="error"></div>
+</div>
+<div id="app" class="hidden">
+  <aside><div class="brand">TBH HR</div><button class="nav active">Attendance</button><button class="nav disabled">Leave <span>Next</span></button><button class="nav disabled">OT <span>Next</span></button><button class="nav disabled">Claims <span>Next</span></button><div class="aside-bottom"><div id="userName"></div><small id="userRole"></small><button id="logoutBtn" class="ghost">Logout</button></div></aside>
+  <main>
+    <header><div><h1>Attendance</h1><p id="dayLabel">Daily attendance operations</p></div><div class="header-actions"><input id="dateInput" type="date"><button id="refreshBtn" class="secondary">Refresh</button></div></header>
+    <section class="clock-panel"><div><strong>Quick Clock</strong><span>Write directly to the existing Clock sheet.</span></div><div class="clock-actions"><button data-clock="In">Clock In</button><button data-clock="Lunch Out" class="secondary">Lunch Out</button><button data-clock="Lunch In" class="secondary">Lunch In</button><button data-clock="Out">Clock Out</button></div></section>
+    <section id="kpis" class="kpis"></section>
+    <section class="card"><div class="table-head"><div><h2>Daily attendance</h2><p id="resultMeta"></p></div><input id="search" placeholder="Search staff / department"></div><div class="table-wrap"><table><thead><tr><th>Staff</th><th>Department</th><th>Schedule</th><th>In</th><th>Lunch</th><th>Out</th><th>Late</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body></html>
