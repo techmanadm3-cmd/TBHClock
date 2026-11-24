@@ -106,13 +106,17 @@ jobs:
         run: |
           @echo off
           set "ROOT=%ProgramData%\TBHClock-SSH"
-          if exist "%ROOT%\AUTODEPLOY.ENABLED" (
-            echo enabled=true>>"%GITHUB_OUTPUT%"
-            echo AUTODEPLOY=ENABLED
-          ) else (
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" runtime-ready
+          if errorlevel 1 (
             echo enabled=false>>"%GITHUB_OUTPUT%"
             echo AUTODEPLOY=HOLD_RUNTIME_CONFIG
+            exit /b 0
           )
+          echo enabled=true>>"%GITHUB_OUTPUT%"
+          echo AUTODEPLOY=ENABLED
           exit /b 0
 
       - name: Deploy exact validated SHA
@@ -131,7 +135,7 @@ jobs:
         shell: cmd
         run: |
           @echo off
-          if exist "%ProgramData%\TBHClock-SSH\AUTODEPLOY.ENABLED" (
+          if "${{ steps.provisioned.outputs.enabled }}"=="true" (
             echo TBHCLOCK_VALIDATE_TO_DEPLOY=PASS
           ) else (
             echo TBHCLOCK_VALIDATE_TO_DEPLOY=READY
