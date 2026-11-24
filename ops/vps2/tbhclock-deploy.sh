@@ -28,7 +28,7 @@ git -C "$REPO" cat-file -e "$sha^{commit}"
 if [ "${TBHCLOCK_DEPLOY_SELF_UPDATED:-0}" != "1" ]; then
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-  for name in tbhclock-deploy.sh tbhclock-gateway.sh tbhclock-runtime-bootstrap.sh tbhclock-runtime-check.sh; do
+  for name in tbhclock-deploy.sh tbhclock-gateway.sh tbhclock-runtime-bootstrap.sh tbhclock-runtime-check.sh tbhclock-public-check.sh tbhclock-public-apply.sh; do
     git -C "$REPO" show "$sha:ops/vps2/$name" > "$TMP/$name"
     chmod 755 "$TMP/$name"
   done
@@ -36,6 +36,8 @@ if [ "${TBHCLOCK_DEPLOY_SELF_UPDATED:-0}" != "1" ]; then
   install -m 755 "$TMP/tbhclock-gateway.sh" /usr/local/sbin/tbhclock-gateway
   install -m 755 "$TMP/tbhclock-runtime-bootstrap.sh" /usr/local/sbin/tbhclock-runtime-bootstrap
   install -m 755 "$TMP/tbhclock-runtime-check.sh" /usr/local/sbin/tbhclock-runtime-check
+  install -m 755 "$TMP/tbhclock-public-check.sh" /usr/local/sbin/tbhclock-public-check
+  install -m 755 "$TMP/tbhclock-public-apply.sh" /usr/local/sbin/tbhclock-public-apply
   rm -rf "$TMP"
   trap - EXIT HUP INT TERM
   TBHCLOCK_DEPLOY_SELF_UPDATED=1 exec /usr/local/sbin/tbhclock-deploy "$sha"
