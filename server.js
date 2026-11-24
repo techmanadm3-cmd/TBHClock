@@ -50,8 +50,8 @@ async function readJson(req) {
 }
 function auth(req) { return verifySession(cookies(req).hr_session); }
 
-async function loadStaff() { return rowsToObjects(await cached('staff', 60, () => sheets.get('Staff!A1:AI1000'))); }
-async function loadClock() { return rowsToObjects(await cached('clock', CACHE_SECONDS, () => sheets.get('Clock!A1:T70021'))); }
+async function loadStaff() { return rowsToObjects(await cached('staff', 60, () => sheets.get('Staff!A:AI'))); }
+async function loadClock() { return rowsToObjects(await cached('clock', CACHE_SECONDS, () => sheets.get('Clock!A:T'))); }
 async function loadDateDim() { return rowsToObjects(await cached('datedim', 3600, () => sheets.get('DateDim!A1:D1281'))); }
 async function loadScheduleRules() { return rowsToObjects(await cached('schedrules', 60, () => sheets.get('HR_ScheduleRules!A1:N500'))); }
 async function loadStaffSchedule() { return rowsToObjects(await cached('staffsched', 60, () => sheets.get('HR_StaffSchedule!A1:J1000'))); }
@@ -101,7 +101,7 @@ async function routeApi(req, res, url) {
     const date = `${p.day}/${p.month}/${p.year}`;
     const time = `${p.hour}:${p.minute}:${p.second}`;
     const stamp = `${date} ${time}`;
-    const row = ['',date,time,staff.Key,body.type,body.location||'',body.remarks||'','No','','','',stamp,staff.Department1||'',staff.Department||'','','',staff['Staff Name']||'','',''];
+    const row = [crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',body.remarks||'','No','','','',stamp,staff.Department1||'',staff.Department||'','','',staff['Staff Name']||'','',''];
     await sheets.append('Clock!A:T', row);
     cache.delete('clock');
     return json(res,200,{ok:true,date,time,type:body.type});
