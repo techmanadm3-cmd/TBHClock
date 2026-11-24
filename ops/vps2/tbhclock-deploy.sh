@@ -38,6 +38,17 @@ if [ "${TBHCLOCK_DEPLOY_SELF_UPDATED:-0}" != "1" ]; then
   install -m 755 "$TMP/tbhclock-runtime-check.sh" /usr/local/sbin/tbhclock-runtime-check
   install -m 755 "$TMP/tbhclock-public-check.sh" /usr/local/sbin/tbhclock-public-check
   install -m 755 "$TMP/tbhclock-public-apply.sh" /usr/local/sbin/tbhclock-public-apply
+
+  cat > /etc/sudoers.d/tbhclock-github <<'EOF'
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-deploy *
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-bootstrap
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-check
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-public-check
+tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-public-apply
+EOF
+  chmod 440 /etc/sudoers.d/tbhclock-github
+  visudo -cf /etc/sudoers.d/tbhclock-github >/dev/null
+
   rm -rf "$TMP"
   trap - EXIT HUP INT TERM
   TBHCLOCK_DEPLOY_SELF_UPDATED=1 exec /usr/local/sbin/tbhclock-deploy "$sha"
