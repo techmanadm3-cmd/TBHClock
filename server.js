@@ -57,6 +57,7 @@ async function loadScheduleRules() { return rowsToObjects(await cached('schedrul
 async function loadStaffSchedule() { return rowsToObjects(await cached('staffsched', 60, () => sheets.get('HR_StaffSchedule!A1:J1000'))); }
 
 async function routeApi(req, res, url) {
+  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, {ok:true, service:'tbh-hr-webapp'});
   if (req.method === 'POST' && url.pathname === '/api/login') {
     const {username, password} = await readJson(req);
     const staff = (await loadStaff()).find(s => s.Username === username && s.Password === password && String(s.Status).toLowerCase() === 'active');
