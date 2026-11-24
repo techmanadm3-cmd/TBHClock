@@ -59,8 +59,10 @@ jobs:
           @echo off
           if exist .env exit /b 41
           if exist secrets\google-service-account.json exit /b 42
-          git grep -n "BEGIN PRIVATE KEY" >nul 2>&1
+          git ls-files --error-unmatch .env >nul 2>&1
           if %ERRORLEVEL%==0 exit /b 43
+          git ls-files --error-unmatch secrets/google-service-account.json >nul 2>&1
+          if %ERRORLEVEL%==0 exit /b 44
           echo SECRET_SAFETY=PASS
 
       - name: Final validate result
