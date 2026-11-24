@@ -46,14 +46,14 @@ jobs:
           echo SSH_CONFIG=PASS
           exit /b 0
 
-      - name: Checkout requested validated commit
+      - name: Verify requested SHA exists in repository
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.commit_sha }}
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify requested commit
+      - name: Verify exact checkout
         shell: cmd
         run: |
           @echo off
@@ -61,15 +61,7 @@ jobs:
           if /I not "%ACTUAL%"=="${{ inputs.commit_sha }}" exit /b 31
           echo COMMIT_SHA=PASS
 
-      - name: Package release
-        shell: cmd
-        run: |
-          @echo off
-          if exist "%RUNNER_TEMP%\tbhclock-release.tar.gz" del /q "%RUNNER_TEMP%\tbhclock-release.tar.gz"
-          git archive --format=tar.gz -o "%RUNNER_TEMP%\tbhclock-release.tar.gz" HEAD || exit /b 41
-          echo PACKAGE=PASS
-
-      - name: Upload and activate through dedicated VPS2 gateway
+      - name: VPS2 gateway ping
         shell: cmd
         run: |
           @echo off
@@ -77,10 +69,18 @@ jobs:
           for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
             if not "%%A"=="" set "%%A=%%B"
           )
-          set "SSH=%WINDIR%\System32\OpenSSH\ssh.exe"
-          set "SCP=%WINDIR%\System32\OpenSSH\scp.exe"
-          "%SCP%" -P %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%RUNNER_TEMP%\tbhclock-release.tar.gz" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%:incoming/tbhclock-${{ inputs.commit_sha }}.tar.gz" || exit /b 51
-          "%SSH%" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" "deploy ${{ inputs.commit_sha }}" || exit /b 52
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" ping || exit /b 41
+          echo VPS2_GATEWAY_PING=PASS
+
+      - name: Deploy exact validated SHA
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" "deploy ${{ inputs.commit_sha }}" || exit /b 51
           echo VPS2_DEPLOY=PASS
 
       - name: Final result
