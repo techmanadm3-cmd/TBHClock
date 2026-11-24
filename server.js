@@ -88,6 +88,43 @@ async function routeApi(req, res, url) {
     return json(res, 200, result);
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/approval-center') {
+    const [clockRows, staffRows] = await Promise.all([loadClock(), loadStaff()]);
+    const staffByKey = new Map(staffRows.map(s => [String(s.Key || ''), s]));
+    const isStaff = String(user.permission || '').toUpperCase() === 'STAFF';
+    const normalize = r => {
+      const staffCode = String(r['Staff Name'] || '');
+      const s = staffByKey.get(staffCode) || {};
+      return {
+        key: r.Key || '',
+        date: r.Date || '',
+        time: r.Time || '',
+        staffCode,
+        name: r.Name || s['Staff Name'] || staffCode,
+        department: r.Department || s.Department1 || s.Department || '',
+        type: r.Type || '',
+        remarks: r.Remarks || '',
+        adjustment: r.Adjustment || '',
+        approval: r.Approval || '',
+        approvalBy: r['Approvel By'] || '',
+        lateTime: r['Late Time'] || '',
+        lateResult: r['Late Result'] || '',
+        totalLate: r['Total Late'] || ''
+      };
+    };
+    let items = clockRows.slice().reverse().map(normalize);
+    if (isStaff) items = items.filter(x => x.staffCode === user.staffCode);
+    const hasLate = x => {
+      const lateText = String(x.lateTime || '').trim();
+      const lateResult = String(x.lateResult || '').trim().toLowerCase();
+      const totalLate = Number(String(x.totalLate || '').replace(/[^0-9.-]/g,'')) || 0;
+      return totalLate > 0 || (!!lateText && lateText !== '0' && lateText !== '00:00' && lateText !== '00:00:00') || ['late','yes','true'].includes(lateResult);
+    };
+    const late = items.filter(hasLate).slice(0,500);
+    const adjustments = items.filter(x => String(x.adjustment || '').trim().toLowerCase() === 'yes').slice(0,500);
+    return json(res,200,{late,adjustments});
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/clock') {
     const body = await readJson(req);
     const allowed = new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
