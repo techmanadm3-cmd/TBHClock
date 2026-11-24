@@ -21,7 +21,7 @@ function setView(view){
   $('#clockView').classList.toggle('hidden',view!=='clock');
   $('#reportView').classList.toggle('hidden',view!=='report');
   $('#approvalView').classList.toggle('hidden',view!=='approval');
-  $('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  $$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   const titles={clock:'Clock',report:'Report',approval:'Approval Center'};
   $('#headerTitle').textContent=titles[view]||'TBH HR';
   $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
@@ -61,7 +61,7 @@ async function loadReport(){
     renderReport();
   }catch(e){toast(e.message,'error')}
 }
-function setReportPanel(panel){reportPanel=panel;$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
+function setReportPanel(panel){reportPanel=panel;$$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
 function renderReport(){
   if(!data)return;
   const q=$('#search').value.trim().toLowerCase();
