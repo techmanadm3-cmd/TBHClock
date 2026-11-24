@@ -18,25 +18,26 @@ jobs:
 
     steps:
       - name: Runner identity
-        shell: powershell
+        shell: cmd
         run: |
-          Write-Host "RUNNER_NAME=$env:RUNNER_NAME"
-          if ($env:RUNNER_NAME -ne "TBH-CLOCK-WIN01") {
-            throw "Wrong runner: $env:RUNNER_NAME"
-          }
-          Write-Host "RUNNER_IDENTITY=PASS"
+          @echo off
+          echo RUNNER_NAME=%RUNNER_NAME%
+          if /I not "%RUNNER_NAME%"=="TBH-CLOCK-WIN01" exit /b 11
+          echo RUNNER_IDENTITY=PASS
 
       - name: Tool check
-        shell: powershell
+        shell: cmd
         run: |
-          $ErrorActionPreference = "Stop"
-          git --version
-          node --version
-          npm --version
-          Write-Host "GIT_NODE_NPM=PASS"
+          @echo off
+          git --version || exit /b 21
+          node --version || exit /b 22
+          npm --version || exit /b 23
+          where ssh.exe || exit /b 24
+          echo GIT_NODE_NPM_SSH=PASS
 
       - name: Final result
-        shell: powershell
+        shell: cmd
         run: |
-          Write-Host "TBHCLOCK_WINDOWS_RUNNER=PASS"
-          Write-Host "DEPLOY=OFF"
+          @echo off
+          echo TBHCLOCK_WINDOWS_RUNNER=PASS
+          echo DEPLOY=OFF
