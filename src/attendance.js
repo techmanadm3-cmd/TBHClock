@@ -94,7 +94,7 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
       staffCode: staff.Key,
       name: staff['Staff Name'],
       department: staff.Department1 || '',
-      position: staff.Department || staff['Job Title'] || '',
+      position: staff['Job Title'] || staff.Department || '',
       schedule: schedule?.rule?.['Schedule Name'] || '',
       scheduleSource: schedule?.source || 'Unassigned',
       scheduledStart,

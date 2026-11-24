@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]};
+let data=null,currentUser=null,selectedType='In',adjustment='No',reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 async function api(url,opts={}){const r=await fetch(url,{headers:{'content-type':'application/json',...(opts.headers||{})},...opts});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
@@ -47,31 +47,73 @@ function toggleMenu(){
 }
 function closeMenu(){if(isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden')}}
 
-async function loadReport(){try{data=await api(`/api/attendance/daily?date=${encodeURIComponent($('#dateInput').value)}`);renderReport()}catch(e){toast(e.message,'error')}}
-function setReportPanel(panel){reportPanel=panel;$$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
+async function loadReport(){
+  try{
+    const date=$('#dateInput').value;
+    const [daily,detail]=await Promise.all([
+      api(`/api/attendance/daily?date=${encodeURIComponent(date)}`),
+      api(`/api/report/day?date=${encodeURIComponent(date)}`)
+    ]);
+    data=daily;
+    reportData=detail;
+    const day=String(date||'').slice(8,10).replace(/^0/,'');
+    if(day)$('#todayModuleDay').textContent=day;
+    renderReport();
+  }catch(e){toast(e.message,'error')}
+}
+function setReportPanel(panel){reportPanel=panel;$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
 function renderReport(){
   if(!data)return;
-  const items=data.items||[],q=$('#search').value.trim().toLowerCase();
-  const rows=items.filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position}`.toLowerCase().includes(q));
-  $('#resultMeta').textContent=[data.date,data.dayType,data.holiday].filter(Boolean).join(' · ');
-  const k=data.kpi||{};
+  const q=$('#search').value.trim().toLowerCase();
+  const meta=[data.date,data.dayType,data.holiday].filter(Boolean).join(' · ');
+  $('#todayCards').classList.toggle('hidden',reportPanel!=='today');
+  $('#reportTableBlock').classList.toggle('hidden',reportPanel==='today');
+
   if(reportPanel==='today'){
+    const cards=(data.items||[])
+      .filter(x=>x.clockIn)
+      .filter(x=>!q||`${x.staffCode} ${x.name} ${x.department}`.toLowerCase().includes(q));
     $('#reportPanelTitle').textContent='Today';
-    $('#reportSummary').innerHTML=[['Total',k.total],['Present',k.present],['Late',k.late],['Missing',k.missing],['Absent',k.absent]].map(([l,v])=>`<div><span>${l}</span><strong>${v??0}</strong></div>`).join('');
-    $('#reportHead').innerHTML='<tr><th>Staff</th><th>Department</th><th>In</th><th>Lunch</th><th>Out</th><th>Late</th><th>Status</th></tr>';
-    $('#reportRows').innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.clockIn)}</td><td>${esc(x.lunchOut)}${x.lunchIn?' - '+esc(x.lunchIn):''}</td><td>${esc(x.clockOut)}</td><td>${esc(x.late)}</td><td><span class="pill ${esc(x.status).replaceAll(' ','-')}">${esc(x.status)}</span></td></tr>`).join('');
-  }else if(reportPanel==='clockin'){
-    $('#reportPanelTitle').textContent='Clock In';
-    $('#reportSummary').innerHTML='';
-    $('#reportHead').innerHTML='<tr><th>Staff</th><th>Department</th><th>Clock In</th><th>Late</th><th>Status</th></tr>';
-    $('#reportRows').innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.late||'—')}</td><td><span class="pill ${esc(x.status).replaceAll(' ','-')}">${esc(x.status)}</span></td></tr>`).join('');
-  }else{
-    $('#reportPanelTitle').textContent='Working Hours';
-    $('#reportSummary').innerHTML='';
-    $('#reportHead').innerHTML='<tr><th>Staff</th><th>Department</th><th>Schedule</th><th>Start</th><th>End</th><th>Source</th></tr>';
-    $('#reportRows').innerHTML=rows.map(x=>`<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.schedule||'Unassigned')}</td><td>${esc(x.scheduledStart||'—')}</td><td>${esc(x.scheduledEnd||'—')}</td><td>${esc(x.scheduleSource||'—')}</td></tr>`).join('');
+    $('#resultMeta').textContent=`${cards.length} staff clocked in${meta?' · '+meta:''}`;
+    $('#todayCards').innerHTML=cards.map(x=>`
+      <article class="today-staff-card">
+        <div class="today-avatar">${esc(initials(x.name))}</div>
+        <div class="today-card-copy">
+          <strong>${esc(x.name)}</strong>
+          <span>In <b>${esc(x.clockIn)}</b></span>
+        </div>
+      </article>`).join('');
+    if(!cards.length)$('#todayCards').innerHTML='<div class="empty-card-state">No staff has clocked in for this date.</div>';
+    return;
   }
-  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="8" class="empty-cell">No records</td></tr>';
+
+  if(reportPanel==='clockmaster'){
+    const rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
+    $('#reportPanelTitle').textContent='Clock Master';
+    $('#resultMeta').textContent=`${rows.length} clock records${meta?' · '+meta:''}`;
+    $('#reportHead').innerHTML='<tr><th>Date</th><th>Time</th><th>Staff Name</th><th>Type</th><th>Department</th><th>Late Result</th><th>Day Type</th></tr>';
+    const departments=[...new Set(rows.map(x=>x.department||'Unassigned'))];
+    let body='';
+    for(const dept of departments){
+      const deptRows=rows.filter(x=>(x.department||'Unassigned')===dept);
+      body+=`<tr class="department-group-row"><td colspan="7"><strong>${esc(dept)}</strong><span>${deptRows.length}</span></td></tr>`;
+      const staffNames=[...new Set(deptRows.map(x=>x.name||x.staffCode||'Unknown'))];
+      for(const staffName of staffNames){
+        const staffRows=deptRows.filter(x=>(x.name||x.staffCode||'Unknown')===staffName);
+        body+=`<tr class="staff-group-row"><td colspan="7"><strong>${esc(staffName)}</strong><span>${staffRows.length}</span></td></tr>`;
+        body+=staffRows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
+      }
+    }
+    $('#reportRows').innerHTML=body||'<tr><td colspan="7" class="empty-cell">No clock records</td></tr>';
+    return;
+  }
+
+  const rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.position} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  $('#reportPanelTitle').textContent='Working Hours';
+  $('#resultMeta').textContent=`${rows.length} staff records${meta?' · '+meta:''}`;
+  $('#reportHead').innerHTML='<tr><th>Date</th><th>Staff Name</th><th>Duration</th><th>In</th><th>Out</th><th>Actual OT Hour</th><th>OT Approval Hours</th><th>Lunch Out</th><th>Lunch In</th><th>OT Approval</th><th>Position</th><th>Department</th></tr>';
+  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.duration||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.otApproval||'—')}</td><td>${esc(x.position||'—')}</td><td>${esc(x.department||'—')}</td></tr>`).join('');
+  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
 }
 
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}

@@ -52,9 +52,42 @@ function auth(req) { return verifySession(cookies(req).hr_session); }
 
 async function loadStaff() { return rowsToObjects(await cached('staff', 60, () => sheets.get('Staff!A:AI'))); }
 async function loadClock() { return rowsToObjects(await cached('clock', CACHE_SECONDS, () => sheets.get('Clock!A:T'))); }
+async function loadOT() { return rowsToObjects(await cached('ot', CACHE_SECONDS, () => sheets.get('OT!A:Y'))); }
 async function loadDateDim() { return rowsToObjects(await cached('datedim', 3600, () => sheets.get('DateDim!A1:D1281'))); }
 async function loadScheduleRules() { return rowsToObjects(await cached('schedrules', 60, () => sheets.get('HR_ScheduleRules!A1:N500'))); }
 async function loadStaffSchedule() { return rowsToObjects(await cached('staffsched', 60, () => sheets.get('HR_StaffSchedule!A1:J1000'))); }
+
+function ymdToDmyLocal(ymd) {
+  const m=String(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function clockMinutes(value) {
+  if(!value) return null;
+  const m=String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  return Number(m[1])*60+Number(m[2])+Number(m[3]||0)/60;
+}
+function durationMinutesLabel(value) {
+  if(value==null || !Number.isFinite(value)) return '';
+  const mins=Math.max(0,Math.round(value));
+  return `${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+}
+function approvedValue(value) {
+  const v=String(value||'').trim().toLowerCase();
+  return !!v && !['no','false','rejected','reject','declined','pending'].includes(v) && (v.includes('approv') || ['yes','true','1'].includes(v));
+}
+function sumOtMinutes(rows) {
+  return rows.reduce((sum,r)=>sum+(clockMinutes(r['Estimated Hours of OT'])||0),0);
+}
+function time12(value) {
+  const mins=clockMinutes(value);
+  if(mins==null) return String(value||'');
+  let hour=Math.floor(mins/60)%24;
+  const minute=Math.floor(mins%60);
+  const suffix=hour>=12?'PM':'AM';
+  hour=hour%12||12;
+  return `${hour}:${String(minute).padStart(2,'0')} ${suffix}`;
+}
 
 async function routeApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/health') {
@@ -86,6 +119,92 @@ async function routeApi(req, res, url) {
     let result = buildDailyAttendance({ dateYmd:date, staffRows, clockRows, dateDimRows, scheduleRules, scheduleAssignments });
     if (String(user.permission).toUpperCase() === 'STAFF') result.items = result.items.filter(x => x.staffCode === user.staffCode);
     return json(res, 200, result);
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/report/day') {
+    const date=url.searchParams.get('date') || new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const dateDmy=ymdToDmyLocal(date);
+    const [staffRows,clockRows,dateDimRows,scheduleRules,scheduleAssignments,otRows]=await Promise.all([
+      loadStaff(),loadClock(),loadDateDim(),loadScheduleRules(),loadStaffSchedule(),loadOT()
+    ]);
+    const staffByKey=new Map(staffRows.map(x=>[String(x.Key||''),x]));
+    const dayDim=dateDimRows.find(x=>String(x.Date||'')===dateDmy)||{};
+    let dayClock=clockRows.filter(x=>String(x.Date||'')===dateDmy);
+    if(String(user.permission||'').toUpperCase()==='STAFF') dayClock=dayClock.filter(x=>String(x['Staff Name']||'')===String(user.staffCode||''));
+
+    const clockMaster=dayClock
+      .map(r=>{
+        const staffCode=String(r['Staff Name']||'');
+        const st=staffByKey.get(staffCode)||{};
+        return {
+          key:r.Key||'',
+          date:r.Date||dateDmy,
+          time:time12(r.Time||''),
+          rawTime:r.Time||'',
+          staffCode,
+          name:r.Name||st['Staff Name']||staffCode,
+          type:r.Type||'',
+          department:r.Department||st.Department1||'',
+          lateResult:r['Late Result']||'',
+          dayType:dayDim.Day||''
+        };
+      })
+      .sort((x,y)=>(x.department||'').localeCompare(y.department||'') || (x.name||'').localeCompare(y.name||'') || (clockMinutes(x.rawTime)||0)-(clockMinutes(y.rawTime)||0));
+
+    let daily=buildDailyAttendance({dateYmd:date,staffRows,clockRows,dateDimRows,scheduleRules,scheduleAssignments});
+    if(String(user.permission||'').toUpperCase()==='STAFF') daily.items=daily.items.filter(x=>x.staffCode===user.staffCode);
+
+    let dayOt=otRows.filter(x=>String(x.Date||'')===dateDmy);
+    if(String(user.permission||'').toUpperCase()==='STAFF') dayOt=dayOt.filter(x=>String(x['Staff Name']||'')===String(user.staffCode||''));
+
+    const workingHours=daily.items
+      .filter(x=>x.eventCount>0)
+      .map(x=>{
+        const inMin=clockMinutes(x.clockIn);
+        let outMin=clockMinutes(x.clockOut);
+        const lunchOutMin=clockMinutes(x.lunchOut);
+        let lunchInMin=clockMinutes(x.lunchIn);
+        let duration=null;
+        if(inMin!=null && outMin!=null){
+          if(outMin<inMin) outMin+=1440;
+          let lunch=0;
+          if(lunchOutMin!=null && lunchInMin!=null){
+            if(lunchInMin<lunchOutMin) lunchInMin+=1440;
+            lunch=Math.max(0,lunchInMin-lunchOutMin);
+          }
+          duration=Math.max(0,outMin-inMin-lunch);
+        }
+        let actualOT=null;
+        const scheduleEnd=clockMinutes(x.scheduledEnd);
+        if(outMin!=null && scheduleEnd!=null){
+          let sched=scheduleEnd;
+          if(inMin!=null && sched<inMin) sched+=1440;
+          actualOT=Math.max(0,outMin-sched);
+        }
+        const st=staffByKey.get(String(x.staffCode||''))||{};
+        const otForStaff=dayOt.filter(o=>String(o['Staff Name']||'')===String(x.staffCode||''));
+        const approvedRows=otForStaff.filter(o=>approvedValue(o.Approval));
+        const approvalHours=approvedRows.length?durationMinutesLabel(sumOtMinutes(approvedRows)):'00:00';
+        const approval=otForStaff.map(o=>String(o.Approval||'').trim()).filter(Boolean).join(', ');
+        return {
+          date:dateDmy,
+          staffCode:x.staffCode,
+          name:x.name,
+          duration:durationMinutesLabel(duration),
+          clockIn:time12(x.clockIn),
+          clockOut:time12(x.clockOut),
+          actualOTHour:durationMinutesLabel(actualOT),
+          otApprovalHours:approvalHours,
+          lunchOut:time12(x.lunchOut),
+          lunchIn:time12(x.lunchIn),
+          otApproval:approval,
+          position:st['Job Title']||st.Department||'',
+          department:st.Department1||x.department||''
+        };
+      })
+      .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));
+
+    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',clockMaster,workingHours});
   }
 
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
@@ -130,15 +249,20 @@ async function routeApi(req, res, url) {
     const allowed = new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
     if (!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
     const staffRows = await loadStaff();
-    const staff = staffRows.find(s => s.Key === user.staffCode);
+    const canSelectStaff=String(user.permission||'').toUpperCase()!=='STAFF';
+    const targetStaffCode=canSelectStaff && body.staffCode ? body.staffCode : user.staffCode;
+    const staff=staffRows.find(s=>s.Key===targetStaffCode);
     if (!staff) return json(res,404,{error:'Staff record not found'});
     const now = new Date();
     const parts = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);
     const p = Object.fromEntries(parts.map(x=>[x.type,x.value]));
-    const date = `${p.day}/${p.month}/${p.year}`;
+    const today = `${p.day}/${p.month}/${p.year}`;
+    const selected=/^\d{4}-\d{2}-\d{2}$/.test(String(body.date||''))?String(body.date):'';
+    const date=selected?`${selected.slice(8,10)}/${selected.slice(5,7)}/${selected.slice(0,4)}`:today;
     const time = `${p.hour}:${p.minute}:${p.second}`;
-    const stamp = `${date} ${time}`;
-    const row = [crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',body.remarks||'','No','','','',stamp,staff.Department1||'',staff.Department||'','','',staff['Staff Name']||'','',''];
+    const stamp = `${today} ${time}`;
+    const adjustment=body.adjustment==='Yes'?'Yes':'No';
+    const row = [crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',body.remarks||'',adjustment,'','','',stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
     await sheets.append('Clock!A:T', row);
     cache.delete('clock');
     return json(res,200,{ok:true,date,time,type:body.type});
