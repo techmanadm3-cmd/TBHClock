@@ -5,6 +5,12 @@ case "$cmd" in
   ping)
     printf '%s\n' '{"result":"PASS","service":"tbhclock-gateway","deploy":"ENABLED"}'
     ;;
+  bootstrap)
+    exec sudo -n /usr/local/sbin/tbhclock-runtime-bootstrap
+    ;;
+  runtime-check)
+    exec sudo -n /usr/local/sbin/tbhclock-runtime-check
+    ;;
   "deploy "*)
     sha=${cmd#deploy }
     case "$sha" in
