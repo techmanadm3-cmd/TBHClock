@@ -17,7 +17,18 @@ function setAdjustment(value){adjustment=value;$$('#adjustment button').forEach(
 async function saveClock(){const btn=$('#saveClockBtn');try{btn.disabled=true;btn.classList.add('loading');const payload={type:selectedType,staffCode:$('#clockStaff').value,date:$('#clockDate').value,adjustment};const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});toast(`${selectedType} saved at ${j.time}`);$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Tap to select or take a photo';await loadClockContext()}catch(e){toast(e.message,'error')}finally{btn.disabled=false;btn.classList.remove('loading')}}
 function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Tap to select or take a photo';loadClockContext()}
 
-function setView(view){$('#clockView').classList.toggle('hidden',view!=='clock');$('#reportView').classList.toggle('hidden',view!=='report');$('#approvalView').classList.toggle('hidden',view!=='approval');$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));closeMenu();if(view==='report')loadReport();if(view==='approval')loadApprovals()}
+function setView(view){
+  $('#clockView').classList.toggle('hidden',view!=='clock');
+  $('#reportView').classList.toggle('hidden',view!=='report');
+  $('#approvalView').classList.toggle('hidden',view!=='approval');
+  $('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const titles={clock:'Clock',report:'Report',approval:'Approval Center'};
+  $('#headerTitle').textContent=titles[view]||'TBH HR';
+  $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
+  closeMenu();
+  if(view==='report')loadReport();
+  if(view==='approval')loadApprovals()
+}
 function isMobile(){return window.matchMedia('(max-width:760px)').matches}
 function applySavedSidebarState(){
   if(isMobile()){document.body.classList.remove('sidebar-collapsed');return}

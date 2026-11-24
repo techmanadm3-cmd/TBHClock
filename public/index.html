@@ -31,12 +31,27 @@
 </section>
 
 <div id="app" class="app hidden">
+  <aside id="sidebar" class="sidebar compact-sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo-wrap"><img class="sidebar-logo" src="/tbh-logo.webp" alt="TBH"></div>
+      <div class="brand-copy"><strong>TBH HR</strong><span>MANAGEMENT SYSTEM</span></div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="nav-section-label">WORKSPACE</div>
+    <nav class="primary-nav">
+      <button class="nav-item" data-view="approval" title="Approval Center"><span>✓</span><em>Approval Center</em></button>
+      <button class="nav-item" data-view="report" title="Report"><span>▥</span><em>Report</em></button>
+      <button class="nav-item active" data-view="clock" title="Clock"><span>◷</span><em>Clock</em></button>
+    </nav>
+  </aside>
+
   <header class="topbar">
     <div class="topbar-left">
-      <img class="top-logo" src="/tbh-logo.webp" alt="TBH">
-      <div class="top-separator"></div>
       <button id="menuBtn" class="icon-btn menu-btn" aria-label="Toggle menu" title="Expand / collapse menu"><span></span><span></span><span></span></button>
-      <div class="app-title">TBH HR</div>
+      <div class="header-copy">
+        <div id="headerEyebrow" class="header-eyebrow">TBH INDUSTRIES · HUMAN RESOURCES</div>
+        <div id="headerTitle" class="app-title">Clock</div>
+      </div>
     </div>
     <div class="topbar-right">
       <div class="profile-chip">
@@ -46,14 +61,6 @@
       </div>
     </div>
   </header>
-
-  <aside id="sidebar" class="sidebar compact-sidebar">
-    <nav class="primary-nav">
-      <button class="nav-item" data-view="approval" title="Approval Center"><span>✓</span><em>Approval Center</em></button>
-      <button class="nav-item" data-view="report" title="Report"><span>▥</span><em>Report</em></button>
-      <button class="nav-item active" data-view="clock" title="Clock"><span>◷</span><em>Clock</em></button>
-    </nav>
-  </aside>
 
   <main class="workspace">
     <section id="clockView" class="view">

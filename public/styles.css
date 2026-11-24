@@ -27,3 +27,140 @@
   .sidebar-collapsed .nav-item span{width:20px;font-size:inherit}
   .sidebar-collapsed .nav-item em{width:auto;opacity:1}
 }
+
+/* Enterprise shell refinement */
+:root{--sidebar-expanded:332px;--sidebar-collapsed:86px;--topbar-h:100px}
+body{background:#f3f6fb}
+.sidebar{
+  top:0;
+  width:var(--sidebar-expanded);
+  padding:0 16px 26px;
+  background:linear-gradient(180deg,#183d78 0%,#173a72 46%,#143568 100%);
+  border-right:0;
+  color:#fff;
+  box-shadow:8px 0 26px #0b2d5c14;
+  overflow-y:auto;
+}
+.sidebar-brand{
+  min-height:114px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:18px 6px 14px;
+}
+.brand-logo-wrap{
+  width:68px;height:68px;border-radius:15px;background:#fff;
+  display:grid;place-items:center;box-shadow:0 6px 18px #09295730;flex:0 0 auto
+}
+.sidebar-logo{width:56px;height:56px;object-fit:contain}
+.brand-copy strong{display:block;color:#fff;font-size:22px;font-weight:900;letter-spacing:.01em}
+.brand-copy span{display:block;color:#d9e6ff;font-size:12px;letter-spacing:.1em;margin-top:6px}
+.sidebar-divider{height:1px;background:#ffffff26;margin:0 -16px 27px}
+.nav-section-label{color:#a9c2ed;font-size:12px;font-weight:900;letter-spacing:.16em;padding:7px 14px 10px}
+.primary-nav{gap:8px}
+.nav-item{
+  min-height:54px;
+  color:#fff;
+  padding:0 18px;
+  border-radius:14px;
+  font-size:15px;
+  font-weight:800;
+  gap:14px;
+}
+.nav-item span{color:#d9e8ff;width:30px;font-size:17px}
+.nav-item:hover{background:#ffffff12}
+.nav-item.active{
+  color:#fff;
+  background:linear-gradient(90deg,#47689d,#3d5d91);
+  box-shadow:none;
+  border-left:4px solid #8bbdff;
+  padding-left:14px;
+}
+.nav-item.active span{color:#fff}
+.topbar{
+  left:var(--sidebar-expanded);
+  height:var(--topbar-h);
+  padding:0 26px 0 34px;
+  border-bottom:1px solid #d7e1ed;
+  box-shadow:none;
+  transition:left .2s ease;
+}
+.topbar-left{gap:18px}
+.menu-btn{
+  width:52px;height:52px;border:1px solid #d6e0ec;border-radius:11px;
+  align-items:center;justify-content:center;background:#fff
+}
+.menu-btn span{width:20px;height:3px;background:#143c70}
+.header-copy{display:flex;flex-direction:column;gap:6px}
+.header-eyebrow{
+  color:#2f68d8;font-size:14px;font-weight:900;letter-spacing:.06em
+}
+.app-title{font-size:30px;line-height:1;font-weight:900;color:#0b1f42}
+.workspace{
+  padding:132px 34px 40px calc(var(--sidebar-expanded) + 34px);
+  background:#f3f6fb;
+  transition:padding-left .2s ease;
+}
+.page-hero{
+  max-width:none;
+  margin:0 0 22px;
+  padding:0;
+}
+.page-title-line{gap:0}
+.page-icon{display:none}
+.page-title-line h1{
+  font-size:30px;
+  color:#0b1f42;
+  font-weight:900;
+}
+.page-hero p{
+  margin:7px 0 0;
+  color:#6c7d99;
+  font-style:normal;
+  font-size:15px;
+}
+.clock-card,.report-card,.approval-card,.module-section{
+  max-width:none;
+  border-radius:16px;
+  border:1px solid #dce5ef;
+  box-shadow:0 8px 24px #143a6a0b;
+}
+.sidebar-collapsed .sidebar{width:var(--sidebar-collapsed);padding-left:10px;padding-right:10px}
+.sidebar-collapsed .sidebar-brand{justify-content:center;padding-left:0;padding-right:0}
+.sidebar-collapsed .brand-logo-wrap{width:56px;height:56px;border-radius:13px}
+.sidebar-collapsed .sidebar-logo{width:46px;height:46px}
+.sidebar-collapsed .brand-copy,.sidebar-collapsed .nav-section-label{display:none}
+.sidebar-collapsed .sidebar-divider{margin:0 -10px 22px}
+.sidebar-collapsed .nav-item{justify-content:center;padding:0;border-left:0;gap:0}
+.sidebar-collapsed .nav-item span{width:34px;font-size:18px}
+.sidebar-collapsed .topbar{left:var(--sidebar-collapsed)}
+.sidebar-collapsed .workspace{padding-left:calc(var(--sidebar-collapsed) + 34px)}
+.sidebar-collapsed .nav-item em{display:none}
+@media(max-width:1050px) and (min-width:761px){
+  :root{--sidebar-expanded:270px}
+}
+@media(max-width:760px){
+  :root{--topbar-h:76px}
+  .sidebar{
+    top:0;
+    left:-300px;
+    width:286px!important;
+    padding:0 14px 24px;
+    box-shadow:18px 0 42px #092b5c38;
+  }
+  .sidebar.open{left:0}
+  .sidebar-brand{min-height:96px}
+  .brand-logo-wrap{width:58px;height:58px}
+  .sidebar-logo{width:48px;height:48px}
+  .brand-copy strong{font-size:19px}
+  .brand-copy span{font-size:10px}
+  .topbar,.sidebar-collapsed .topbar{left:0;height:var(--topbar-h);padding:0 12px 0 14px}
+  .topbar-left{gap:12px}
+  .menu-btn{width:44px;height:44px}
+  .header-eyebrow{font-size:10px;letter-spacing:.04em}
+  .app-title{font-size:21px}
+  .workspace,.sidebar-collapsed .workspace{padding:100px 12px 24px}
+  .page-title-line h1{font-size:25px}
+  .page-hero p{font-size:13px}
+  .scrim{inset:0}
+}
