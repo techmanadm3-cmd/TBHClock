@@ -79,6 +79,27 @@ jobs:
           "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" ping || exit /b 41
           echo VPS2_GATEWAY_PING=PASS
 
+      - name: VPS2 runtime bootstrap
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" bootstrap || exit /b 45
+          echo VPS2_RUNTIME_BOOTSTRAP=PASS
+
+      - name: VPS2 runtime status
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" runtime-check || exit /b 46
+
       - name: Check production runtime is provisioned
         id: provisioned
         shell: cmd
