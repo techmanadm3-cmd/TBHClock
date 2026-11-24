@@ -7,7 +7,7 @@ function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.classNa
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#dateInput').value=todayMY();await loadClockContext();setView('clock')}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#dateInput').value=todayMY();applySavedSidebarState();await loadClockContext();setView('clock')}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){try{const date=$('#clockDate').value||todayMY();data=await api(`/api/attendance/daily?date=${encodeURIComponent(date)}`);const items=data.items||[],sel=$('#clockStaff'),prev=sel.value;sel.innerHTML=items.map(x=>`<option value="${esc(x.staffCode)}">${esc(x.name)}${x.department?' · '+esc(x.department):''}</option>`).join('');if(!items.length)sel.innerHTML=`<option value="${esc(currentUser.staffCode)}">${esc(currentUser.name)}</option>`;if(prev&&items.some(x=>x.staffCode===prev))sel.value=prev;else if(items.some(x=>x.staffCode===currentUser.staffCode))sel.value=currentUser.staffCode;updateClockStatus()}catch(e){toast(e.message,'error')}}
@@ -18,8 +18,23 @@ async function saveClock(){const btn=$('#saveClockBtn');try{btn.disabled=true;bt
 function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Tap to select or take a photo';loadClockContext()}
 
 function setView(view){$('#clockView').classList.toggle('hidden',view!=='clock');$('#reportView').classList.toggle('hidden',view!=='report');$('#approvalView').classList.toggle('hidden',view!=='approval');$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));closeMenu();if(view==='report')loadReport();if(view==='approval')loadApprovals()}
-function openMenu(){$('#sidebar').classList.add('open');$('#scrim').classList.remove('hidden')}
-function closeMenu(){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden')}
+function isMobile(){return window.matchMedia('(max-width:760px)').matches}
+function applySavedSidebarState(){
+  if(isMobile()){document.body.classList.remove('sidebar-collapsed');return}
+  const collapsed=localStorage.getItem('tbhhr-sidebar-collapsed')==='1';
+  document.body.classList.toggle('sidebar-collapsed',collapsed);
+}
+function toggleMenu(){
+  if(isMobile()){
+    const open=$('#sidebar').classList.toggle('open');
+    $('#scrim').classList.toggle('hidden',!open);
+    return;
+  }
+  const collapsed=!document.body.classList.contains('sidebar-collapsed');
+  document.body.classList.toggle('sidebar-collapsed',collapsed);
+  localStorage.setItem('tbhhr-sidebar-collapsed',collapsed?'1':'0');
+}
+function closeMenu(){if(isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden')}}
 
 async function loadReport(){try{data=await api(`/api/attendance/daily?date=${encodeURIComponent($('#dateInput').value)}`);renderReport()}catch(e){toast(e.message,'error')}}
 function setReportPanel(panel){reportPanel=panel;$$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
@@ -68,7 +83,7 @@ function renderApprovals(){
 $('#loginBtn').onclick=login;
 $('#password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});
 $('#logoutBtn').onclick=async()=>{await api('/api/logout',{method:'POST'});showLogin()};
-$('#menuBtn').onclick=()=>$('#sidebar').classList.contains('open')?closeMenu():openMenu();
+$('#menuBtn').onclick=toggleMenu;
 $('#scrim').onclick=closeMenu;
 $$('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));
 $$('[data-report-panel]').forEach(b=>b.onclick=()=>setReportPanel(b.dataset.reportPanel));
@@ -84,5 +99,6 @@ $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
+window.addEventListener('resize',()=>{if(!isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden');applySavedSidebarState()}else{document.body.classList.remove('sidebar-collapsed')}});
 setType('In');
 init();
