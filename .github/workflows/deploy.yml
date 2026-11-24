@@ -106,10 +106,13 @@ jobs:
         run: |
           @echo off
           set "ROOT=%ProgramData%\TBHClock-SSH"
+          set "STATUS_FILE=%RUNNER_TEMP%\tbhclock-runtime-status.txt"
           for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
             if not "%%A"=="" set "%%A=%%B"
           )
-          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" runtime-ready
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" runtime-check > "%STATUS_FILE%" 2>&1
+          type "%STATUS_FILE%"
+          findstr /C:"RUNTIME_CONFIG=READY" "%STATUS_FILE%" >nul
           if errorlevel 1 (
             echo enabled=false>>"%GITHUB_OUTPUT%"
             echo AUTODEPLOY=HOLD_RUNTIME_CONFIG
