@@ -43,8 +43,6 @@ if [ "${TBHCLOCK_DEPLOY_SELF_UPDATED:-0}" != "1" ]; then
 tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-deploy *
 tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-bootstrap
 tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-runtime-check
-tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-public-check
-tbhclock-github ALL=(root) NOPASSWD: /usr/local/sbin/tbhclock-public-apply
 EOF
   chmod 440 /etc/sudoers.d/tbhclock-github
   visudo -cf /etc/sudoers.d/tbhclock-github >/dev/null

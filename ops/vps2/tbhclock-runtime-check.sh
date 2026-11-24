@@ -40,3 +40,26 @@ fi
 
 echo "GOOGLE_CREDENTIAL=READY"
 echo "RUNTIME_CONFIG=READY"
+
+HOST_PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1)
+HOST_PORT=${HOST_PORT:-18180}
+PUBLIC_DOMAIN=$(sed -n 's/^TBHCLOCK_PUBLIC_DOMAIN=//p' "$ENVFILE" | tail -n 1)
+
+if command -v nginx >/dev/null 2>&1; then echo "NGINX=READY"; else echo "NGINX=MISSING"; fi
+if command -v certbot >/dev/null 2>&1; then echo "CERTBOT=READY"; else echo "CERTBOT=MISSING"; fi
+
+body=$(curl -fsS "http://127.0.0.1:$HOST_PORT/api/health?deep=1" 2>/dev/null || true)
+if printf '%s' "$body" | grep -q '"googleSheets":true'; then
+  echo "APP_DEEP_HEALTH=PASS"
+else
+  echo "APP_DEEP_HEALTH=HOLD"
+fi
+
+if [ -z "$PUBLIC_DOMAIN" ]; then
+  echo "PUBLIC_DOMAIN=HOLD"
+  echo "PUBLIC_INGRESS=HOLD_DOMAIN"
+else
+  echo "PUBLIC_DOMAIN=$PUBLIC_DOMAIN"
+  if getent ahostsv4 "$PUBLIC_DOMAIN" >/dev/null 2>&1; then echo "PUBLIC_DNS=RESOLVES"; else echo "PUBLIC_DNS=HOLD"; fi
+  if [ -L /etc/nginx/sites-enabled/tbhclock ] || [ -f /etc/nginx/conf.d/tbhclock.conf ]; then echo "NGINX_SITE=READY"; else echo "NGINX_SITE=HOLD"; fi
+fi
