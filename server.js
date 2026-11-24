@@ -57,7 +57,15 @@ async function loadScheduleRules() { return rowsToObjects(await cached('schedrul
 async function loadStaffSchedule() { return rowsToObjects(await cached('staffsched', 60, () => sheets.get('HR_StaffSchedule!A1:J1000'))); }
 
 async function routeApi(req, res, url) {
-  if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, {ok:true, service:'tbh-hr-webapp'});
+  if (req.method === 'GET' && url.pathname === '/api/health') {
+    if (url.searchParams.get('deep') === '1') {
+      const rows = await sheets.get('HR_Settings!A1:D20');
+      const sourceOk = rows.some(r => String(r[0] || '').trim() === 'SOURCE_OF_TRUTH' && String(r[1] || '').trim() === 'GOOGLE_SHEETS');
+      if (!sourceOk) return json(res, 503, {ok:false, service:'tbh-hr-webapp', googleSheets:false});
+      return json(res, 200, {ok:true, service:'tbh-hr-webapp', googleSheets:true});
+    }
+    return json(res, 200, {ok:true, service:'tbh-hr-webapp'});
+  }
   if (req.method === 'POST' && url.pathname === '/api/login') {
     const {username, password} = await readJson(req);
     const staff = (await loadStaff()).find(s => s.Username === username && s.Password === password && String(s.Status).toLowerCase() === 'active');
