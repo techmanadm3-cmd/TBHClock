@@ -23,8 +23,6 @@ fi
 git -C "$REPO" fetch --prune origin main
 git -C "$REPO" cat-file -e "$sha^{commit}"
 
-# Refresh the VPS deploy engine from the exact commit being deployed, then
-# re-exec once so deploy logic and application source always stay in sync.
 if [ "${TBHCLOCK_DEPLOY_SELF_UPDATED:-0}" != "1" ]; then
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT HUP INT TERM
@@ -94,6 +92,9 @@ fi
 
 printf '%s\n' "$sha" > "$ACTIVE_FILE"
 ln -sfn "$RELEASE" "$ROOT/current"
+
 echo "DEPLOY_SHA=$sha"
 echo "DEPLOY_PORT=$HOST_PORT"
 echo "DEPLOY_HEALTH=PASS"
+
+/usr/local/sbin/tbhclock-public-apply
