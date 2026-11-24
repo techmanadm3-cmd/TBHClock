@@ -1,4 +1,4 @@
-name: TBHClock - Validate
+name: TBHClock - Validate & Deploy
 
 on:
   workflow_dispatch:
@@ -11,8 +11,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: tbhclock-validate-main
-  cancel-in-progress: true
+  group: tbhclock-main-pipeline
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -46,7 +46,6 @@ jobs:
           node --check tests\attendance.test.js || exit /b 25
           echo JS_SYNTAX=PASS
 
-
       - name: Attendance tests
         shell: cmd
         run: |
@@ -73,3 +72,105 @@ jobs:
           @echo off
           echo TBHCLOCK_VALIDATE=PASS
           echo DEPLOY_GATE=READY
+
+  deploy:
+    name: Deploy validated SHA from TBH-CLOCK-WIN01 to VPS2
+    needs: validate
+    runs-on: [self-hosted, Windows, X64, tbh-clock, vps2-deploy]
+    timeout-minutes: 20
+    env:
+      TARGET_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Runner identity
+        shell: cmd
+        run: |
+          @echo off
+          if /I not "%RUNNER_NAME%"=="TBH-CLOCK-WIN01" exit /b 51
+          echo DEPLOY_RUNNER=PASS
+
+      - name: Load dedicated VPS2 SSH configuration
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          if not exist "%ROOT%\id_ed25519" exit /b 52
+          if not exist "%ROOT%\known_hosts" exit /b 53
+          if not exist "%ROOT%\deploy.env" exit /b 54
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          if "%TBHCLOCK_SSH_HOST%"=="" exit /b 55
+          if "%TBHCLOCK_SSH_PORT%"=="" exit /b 56
+          if "%TBHCLOCK_SSH_USER%"=="" exit /b 57
+          echo SSH_CONFIG=PASS
+          exit /b 0
+
+      - name: Checkout exact validated commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: cmd
+        run: |
+          @echo off
+          for /f %%H in ('git rev-parse HEAD') do set "ACTUAL=%%H"
+          if /I not "%ACTUAL%"=="%TARGET_SHA%" exit /b 58
+          echo COMMIT_SHA=PASS
+
+      - name: VPS2 gateway ping
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" ping || exit /b 61
+          echo VPS2_GATEWAY_PING=PASS
+
+      - name: VPS2 runtime bootstrap
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" bootstrap || exit /b 62
+          echo VPS2_RUNTIME_BOOTSTRAP=PASS
+
+      - name: Require production runtime READY
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          set "STATUS_FILE=%RUNNER_TEMP%\tbhclock-runtime-status.txt"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" runtime-check > "%STATUS_FILE%" 2>&1 || exit /b 63
+          type "%STATUS_FILE%"
+          findstr /C:"RUNTIME_CONFIG=READY" "%STATUS_FILE%" >nul || exit /b 64
+          echo RUNTIME_CONFIG=READY
+
+      - name: Deploy exact validated SHA
+        shell: cmd
+        run: |
+          @echo off
+          set "ROOT=%ProgramData%\TBHClock-SSH"
+          for /f "usebackq tokens=1,* delims==" %%A in ("%ROOT%\deploy.env") do (
+            if not "%%A"=="" set "%%A=%%B"
+          )
+          "%WINDIR%\System32\OpenSSH\ssh.exe" -T -p %TBHCLOCK_SSH_PORT% -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="%ROOT%\known_hosts" -i "%ROOT%\id_ed25519" "%TBHCLOCK_SSH_USER%@%TBHCLOCK_SSH_HOST%" "deploy %TARGET_SHA%" || exit /b 65
+          echo VPS2_DEPLOY=PASS
+
+      - name: Final pipeline result
+        shell: cmd
+        run: |
+          @echo off
+          echo TBHCLOCK_VALIDATE_TO_DEPLOY=PASS
+          echo PRODUCTION_HEALTH=PASS
