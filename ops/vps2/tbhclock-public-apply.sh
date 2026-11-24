@@ -39,7 +39,20 @@ if [ "$resolved_ok" -ne 1 ]; then
   exit 0
 fi
 
-cat > "$SITE_AVAIL" <<EOF
+CERT_FULLCHAIN="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+CERT_PRIVKEY="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+
+# Existing HTTPS config: keep the certificate configuration that Certbot created
+# and only refresh the local upstream port. This avoids re-running Certbot on
+# every application deploy.
+if [ -s "$CERT_FULLCHAIN" ] && [ -s "$CERT_PRIVKEY" ] && [ -f "$SITE_AVAIL" ] && grep -q 'listen 443' "$SITE_AVAIL"; then
+  sed -i -E "s#proxy_pass http://127\.0\.0\.1:[0-9]+;#proxy_pass http://127.0.0.1:$PORT;#g" "$SITE_AVAIL"
+  ln -sfn "$SITE_AVAIL" "$SITE_ENABLED"
+  nginx -t
+  systemctl reload nginx
+  echo "PUBLIC_CERTIFICATE=EXISTING"
+else
+  cat > "$SITE_AVAIL" <<EOF
 server {
     listen 80;
     listen [::]:80;
@@ -56,14 +69,14 @@ server {
     }
 }
 EOF
-
-ln -sfn "$SITE_AVAIL" "$SITE_ENABLED"
-nginx -t
-systemctl reload nginx
-
-certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect --register-unsafely-without-email
-nginx -t
-systemctl reload nginx
+  ln -sfn "$SITE_AVAIL" "$SITE_ENABLED"
+  nginx -t
+  systemctl reload nginx
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --redirect --register-unsafely-without-email
+  nginx -t
+  systemctl reload nginx
+  echo "PUBLIC_CERTIFICATE=ISSUED"
+fi
 
 body=$(curl -fsS --max-time 15 "https://$DOMAIN/api/health?deep=1" 2>/dev/null || true)
 printf '%s' "$body" | grep -q '"googleSheets":true' || {
