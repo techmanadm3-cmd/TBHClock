@@ -11,6 +11,9 @@ case "$cmd" in
   runtime-check)
     exec sudo -n /usr/local/sbin/tbhclock-runtime-check
     ;;
+  runtime-ready)
+    exec sudo -n /usr/local/sbin/tbhclock-runtime-check --ready
+    ;;
   "deploy "*)
     sha=${cmd#deploy }
     case "$sha" in
