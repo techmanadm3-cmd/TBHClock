@@ -32,3 +32,8 @@ The current Staff sheet stores plaintext passwords. This MVP reads them only for
 
 ## Performance note
 Clock is cached in VPS2 memory for 120 seconds. The current MVP reads the existing Clock sheet as a bounded range, then filters by date. If Clock growth makes this slow, add a Google-Sheets monthly/index helper tab rather than moving the primary database to SQL.
+
+
+## Deployment pipeline
+
+Production changes follow this gate: GitHub main -> TBH-CLOCK-WIN01 validate -> validated SHA deploy from the same Windows runner -> VPS2 runtime readiness -> deep Google Sheets health check. Production credentials remain on VPS2 and are never committed to GitHub.
