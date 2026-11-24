@@ -39,3 +39,4 @@ Clock is cached in VPS2 memory for 120 seconds. The current MVP reads the existi
 Production changes follow this gate: GitHub main -> TBH-CLOCK-WIN01 validate -> validated SHA deploy from the same Windows runner -> VPS2 runtime readiness -> deep Google Sheets health check. Production credentials remain on VPS2 and are never committed to GitHub.
 
 Production loopback port is `18180`; deploy health requires the deep health response to confirm `googleSheets:true`.
+- CI regression guard: Report/Approval navigation selectors are validated to use the NodeList helper before deploy.
