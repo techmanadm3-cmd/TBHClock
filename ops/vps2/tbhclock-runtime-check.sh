@@ -10,7 +10,8 @@ echo "RUNTIME_ENV=READY"
 
 if [ ! -f "$CRED" ]; then
   echo "GOOGLE_CREDENTIAL=HOLD"
-  exit 82
+  echo "RUNTIME_CONFIG=HOLD"
+  exit 0
 fi
 
 mode=$(stat -c '%a' "$CRED")
@@ -23,7 +24,8 @@ if grep -q '"type"[[:space:]]*:[[:space:]]*"service_account"' "$CRED"; then
   echo "GOOGLE_CREDENTIAL_TYPE=SERVICE_ACCOUNT"
 else
   echo "GOOGLE_CREDENTIAL_TYPE=UNKNOWN"
-  exit 83
+  echo "RUNTIME_CONFIG=HOLD"
+  exit 0
 fi
 echo "GOOGLE_CREDENTIAL=READY"
 echo "RUNTIME_CONFIG=READY"
