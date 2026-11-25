@@ -76,6 +76,9 @@
           <label>Date <b>*</b></label>
           <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"><span>▣</span></div>
 
+          <label>Time <b>*</b></label>
+          <input id="clockTime" class="control" type="time" step="60">
+
           <label>Staff Name <b>*</b></label>
           <select id="clockStaff" class="control"></select>
 
@@ -92,20 +95,26 @@
             <button type="button" data-type="Overnight Out" class="wide-mobile">Overnight Out</button>
           </div>
 
-          <label>Clock Image</label>
+          <label>Clock Image <b>*</b></label>
           <div class="upload-box">
-            <input id="clockImage" type="file" accept="image/*" capture="environment">
+            <input id="clockImage" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
             <div class="camera-icon">▣</div>
             <strong id="uploadTitle">Upload Clock Image</strong>
-            <span id="uploadHint">Tap to select or take a photo</span>
-            <small>Photo preview only in this build</small>
+            <span id="uploadHint">Required before Save</span>
+            <small>JPEG / PNG / WebP · max 8 MB</small>
           </div>
 
           <label>Adjustment <b>*</b></label>
-          <div class="segmented" id="adjustment">
-            <button type="button" data-value="Yes">Yes</button>
-            <button type="button" data-value="No" class="selected">No</button>
+          <div>
+            <div class="segmented" id="adjustment">
+              <button type="button" data-value="Yes">Yes</button>
+              <button type="button" data-value="No" class="selected">No</button>
+            </div>
+            <div id="adjustmentHint" class="field-hint">Current date and time only.</div>
           </div>
+
+          <label>Remarks <b id="remarksRequiredMark" class="hidden">*</b></label>
+          <textarea id="clockRemarks" class="control" rows="3" placeholder="Required for Adjustment = Yes"></textarea>
 
           <label>Check In</label>
           <input id="checkInStatus" class="control readonly" value="Missing In" readonly>

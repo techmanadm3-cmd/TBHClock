@@ -1,21 +1,53 @@
 let data=null,currentUser=null,selectedType='In',adjustment='No',reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
+function fileDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('Unable to read Clock Image'));r.readAsDataURL(file)})}
 async function api(url,opts={}){const r=await fetch(url,{headers:{'content-type':'application/json',...(opts.headers||{})},...opts});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.className=`toast ${type}`;clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.add('hidden'),3200)}
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#dateInput').value=todayMY();applySavedSidebarState();await loadClockContext();setView('clock')}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applySavedSidebarState();await loadClockContext();setView('clock')}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){try{const date=$('#clockDate').value||todayMY();data=await api(`/api/attendance/daily?date=${encodeURIComponent(date)}`);const items=data.items||[],sel=$('#clockStaff'),prev=sel.value;sel.innerHTML=items.map(x=>`<option value="${esc(x.staffCode)}">${esc(x.name)}${x.department?' · '+esc(x.department):''}</option>`).join('');if(!items.length)sel.innerHTML=`<option value="${esc(currentUser.staffCode)}">${esc(currentUser.name)}</option>`;if(prev&&items.some(x=>x.staffCode===prev))sel.value=prev;else if(items.some(x=>x.staffCode===currentUser.staffCode))sel.value=currentUser.staffCode;updateClockStatus()}catch(e){toast(e.message,'error')}}
 function updateClockStatus(){const row=(data?.items||[]).find(x=>x.staffCode===$('#clockStaff').value);$('#checkInStatus').value=row?.clockIn||'Missing In';$('#checkOutStatus').value=row?.clockOut||'Missing Out'}
 function setType(type){selectedType=type;$$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type))}
-function setAdjustment(value){adjustment=value;$$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value))}
-async function saveClock(){const btn=$('#saveClockBtn');try{btn.disabled=true;btn.classList.add('loading');const payload={type:selectedType,staffCode:$('#clockStaff').value,date:$('#clockDate').value,adjustment};const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});toast(`${selectedType} saved at ${j.time}`);$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Tap to select or take a photo';await loadClockContext()}catch(e){toast(e.message,'error')}finally{btn.disabled=false;btn.classList.remove('loading')}}
-function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Tap to select or take a photo';loadClockContext()}
+function setAdjustment(value){adjustment=value;$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value));applyClockMode()}
+function applyClockMode(){
+  const yes=adjustment==='Yes',today=todayMY();
+  $('#clockDate').max=today;
+  $('#clockDate').disabled=!yes;
+  $('#clockTime').disabled=!yes;
+  $('#remarksRequiredMark').classList.toggle('hidden',!yes);
+  $('#adjustmentHint').textContent=yes?'Date and time can be adjusted. Future date is not allowed. Remarks and approval are required.':'Current date and time only. Date and time cannot be changed.';
+  if(!yes){$('#clockDate').value=today;$('#clockTime').value=timeMY();$('#clockRemarks').value=''}
+}
+async function saveClock(){
+  const btn=$('#saveClockBtn');
+  try{
+    const today=todayMY();
+    if(adjustment==='No'){$('#clockDate').value=today;$('#clockTime').value=timeMY()}
+    if($('#clockDate').value>today) throw new Error('Future date is not allowed');
+    if(adjustment==='Yes'&&!$('#clockRemarks').value.trim()) throw new Error('Remarks is required for Adjustment = Yes');
+    if(adjustment==='No'&&$('#clockDate').value!==today) throw new Error('Past date is Adjustment only');
+    const file=$('#clockImage').files?.[0];
+    if(!file) throw new Error('Clock Image is required');
+    if(!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Clock Image must be JPEG, PNG or WebP');
+    if(file.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
+    btn.disabled=true;btn.classList.add('loading');
+    const payload={type:selectedType,staffCode:$('#clockStaff').value,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),image:{name:file.name,type:file.type,size:file.size,dataUrl:await fileDataUrl(file)}};
+    const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});
+    toast(`${selectedType} saved at ${j.time}`);
+    $('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Required before Save';
+    if(adjustment==='Yes')$('#clockRemarks').value='';
+    await loadClockContext();
+  }catch(e){toast(e.message,'error')}
+  finally{btn.disabled=false;btn.classList.remove('loading')}
+}
+function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Required before Save';loadClockContext()}
 
 function setView(view){
   $('#clockView').classList.toggle('hidden',view!=='clock');
@@ -143,11 +175,11 @@ $$('[data-report-panel]').forEach(b=>b.onclick=()=>setReportPanel(b.dataset.repo
 $$('[data-approval-tab]').forEach(b=>b.onclick=()=>setApprovalTab(b.dataset.approvalTab));
 $$('#typeGrid button').forEach(b=>b.onclick=()=>setType(b.dataset.type));
 $$('#adjustment button').forEach(b=>b.onclick=()=>setAdjustment(b.dataset.value));
-$('#clockDate').onchange=loadClockContext;
+$('#clockDate').onchange=()=>{if($('#clockDate').value>todayMY()){$('#clockDate').value=todayMY();toast('Future date is not allowed','error')}loadClockContext()};
 $('#clockStaff').onchange=updateClockStatus;
 $('#saveClockBtn').onclick=saveClock;
 $('#cancelClockBtn').onclick=resetClock;
-$('#clockImage').onchange=e=>{const f=e.target.files?.[0];if(f){$('#uploadTitle').textContent=f.name;$('#uploadHint').textContent=`${Math.max(1,Math.round(f.size/1024))} KB selected`;toast('Photo selected. Image storage will be connected separately.','info')}};
+$('#clockImage').onchange=e=>{const f=e.target.files?.[0];if(f){$('#uploadTitle').textContent=f.name;$('#uploadHint').textContent=`${Math.max(1,Math.round(f.size/1024))} KB · ready to save`;}};
 $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;

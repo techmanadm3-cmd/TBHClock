@@ -9,6 +9,8 @@ const PORT = Number(process.env.PORT || 8080);
 const APP_SECRET = process.env.APP_SECRET || 'dev-secret-change-me';
 const SPREADSHEET_ID = process.env.GOOGLE_SPREADSHEET_ID || '1VY4ZK4Upd6XBT-gdXxfd2ZbgfAlr5MdveDVoIeAGhTI';
 const CACHE_SECONDS = Number(process.env.CLOCK_CACHE_SECONDS || 120);
+const UPLOAD_ROOT = process.env.UPLOAD_ROOT || path.join(__dirname,'uploads');
+const CLOCK_IMAGE_ROOT = path.join(UPLOAD_ROOT,'clock-images');
 const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) : null;
 const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(__dirname, 'secrets/google-service-account.json');
 const sheets = new GoogleSheetsClient({ spreadsheetId: SPREADSHEET_ID, credentialsPath, credentialsJson });
@@ -45,7 +47,12 @@ function json(res, code, body, headers={}) {
   res.end(JSON.stringify(body));
 }
 async function readJson(req) {
-  let body=''; for await (const chunk of req) body += chunk;
+  let body='',bytes=0;
+  for await (const chunk of req) {
+    bytes+=chunk.length;
+    if(bytes>12*1024*1024){const e=new Error('Request too large');e.statusCode=413;throw e}
+    body+=chunk;
+  }
   return body ? JSON.parse(body) : {};
 }
 function auth(req) { return verifySession(cookies(req).hr_session); }
@@ -89,6 +96,23 @@ function time12(value) {
   return `${hour}:${String(minute).padStart(2,'0')} ${suffix}`;
 }
 
+function saveClockImage(image,staffCode,dateYmd,time){
+  if(!image||!image.dataUrl) throw new Error('Clock Image is required');
+  const mime=String(image.type||'').toLowerCase();
+  const extByMime={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+  const ext=extByMime[mime];
+  if(!ext) throw new Error('Clock Image must be JPEG, PNG or WebP');
+  const m=String(image.dataUrl).match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/i);
+  if(!m||m[1].toLowerCase()!==mime) throw new Error('Invalid Clock Image');
+  const buffer=Buffer.from(m[2],'base64');
+  if(!buffer.length) throw new Error('Clock Image is required');
+  if(buffer.length>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
+  fs.mkdirSync(CLOCK_IMAGE_ROOT,{recursive:true});
+  const safeStaff=String(staffCode||'staff').replace(/[^A-Za-z0-9_-]/g,'_');
+  const name=`${String(dateYmd).replace(/-/g,'')}_${String(time).replace(/:/g,'')}_${safeStaff}_${crypto.randomUUID()}.${ext}`;
+  fs.writeFileSync(path.join(CLOCK_IMAGE_ROOT,name),buffer,{mode:0o600});
+  return `clock-images/${name}`;
+}
 async function routeApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/health') {
     if (url.searchParams.get('deep') === '1') {
@@ -112,6 +136,15 @@ async function routeApi(req, res, url) {
   const user = auth(req);
   if (!user) return json(res, 401, {error:'Unauthenticated'});
   if (req.method === 'GET' && url.pathname === '/api/me') return json(res, 200, {user});
+  if (req.method === 'GET' && url.pathname.startsWith('/api/clock-image/')) {
+    const name=path.basename(url.pathname.slice('/api/clock-image/'.length));
+    const file=path.join(CLOCK_IMAGE_ROOT,name);
+    if(!name||!file.startsWith(CLOCK_IMAGE_ROOT)||!fs.existsSync(file)) return json(res,404,{error:'Clock Image not found'});
+    const ext=path.extname(file).toLowerCase();
+    const types={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
+    res.writeHead(200,{'content-type':types[ext]||'application/octet-stream','cache-control':'private, max-age=300'});
+    return fs.createReadStream(file).pipe(res);
+  }
 
   if (req.method === 'GET' && url.pathname === '/api/attendance/daily') {
     const date = url.searchParams.get('date') || new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -245,27 +278,49 @@ async function routeApi(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/clock') {
-    const body = await readJson(req);
-    const allowed = new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
-    if (!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
-    const staffRows = await loadStaff();
+    const body=await readJson(req);
+    const allowed=new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
+    if(!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
+
+    const staffRows=await loadStaff();
     const canSelectStaff=String(user.permission||'').toUpperCase()!=='STAFF';
-    const targetStaffCode=canSelectStaff && body.staffCode ? body.staffCode : user.staffCode;
+    const targetStaffCode=canSelectStaff&&body.staffCode?body.staffCode:user.staffCode;
     const staff=staffRows.find(s=>s.Key===targetStaffCode);
-    if (!staff) return json(res,404,{error:'Staff record not found'});
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);
-    const p = Object.fromEntries(parts.map(x=>[x.type,x.value]));
-    const today = `${p.day}/${p.month}/${p.year}`;
-    const selected=/^\d{4}-\d{2}-\d{2}$/.test(String(body.date||''))?String(body.date):'';
-    const date=selected?`${selected.slice(8,10)}/${selected.slice(5,7)}/${selected.slice(0,4)}`:today;
-    const time = `${p.hour}:${p.minute}:${p.second}`;
-    const stamp = `${today} ${time}`;
+    if(!staff) return json(res,404,{error:'Staff record not found'});
+
+    const now=new Date();
+    const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(now);
+    const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+    const todayYmd=`${p.year}-${p.month}-${p.day}`;
+    const nowTime=`${p.hour}:${p.minute}:${p.second}`;
     const adjustment=body.adjustment==='Yes'?'Yes':'No';
-    const row = [crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',body.remarks||'',adjustment,'','','',stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
-    await sheets.append('Clock!A:T', row);
+    const selected=/^\d{4}-\d{2}-\d{2}$/.test(String(body.date||''))?String(body.date):'';
+
+    if(selected&&selected>todayYmd) return json(res,400,{error:'Future date is not allowed'});
+    let dateYmd=todayYmd,time=nowTime,remarks=String(body.remarks||'').trim(),approval='';
+    if(adjustment==='Yes'){
+      if(!selected) return json(res,400,{error:'Adjustment date is required'});
+      if(!/^\d{2}:\d{2}(?::\d{2})?$/.test(String(body.time||''))) return json(res,400,{error:'Adjustment time is required'});
+      if(!remarks) return json(res,400,{error:'Remarks is required for Adjustment = Yes'});
+      dateYmd=selected;
+      time=String(body.time).length===5?`${body.time}:00`:String(body.time);
+      approval='Pending';
+    }else if(selected&&selected!==todayYmd){
+      return json(res,400,{error:'Past date is Adjustment only'});
+    }
+
+    let imagePath='';
+    try{imagePath=saveClockImage(body.image,staff.Key,dateYmd,time)}
+    catch(e){return json(res,400,{error:e.message})}
+
+    const date=`${dateYmd.slice(8,10)}/${dateYmd.slice(5,7)}/${dateYmd.slice(0,4)}`;
+    const today=`${p.day}/${p.month}/${p.year}`;
+    const stamp=`${today} ${nowTime}`;
+    const row=[crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',remarks,adjustment,approval,'',imagePath,stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
+    try{await sheets.append('Clock!A:T',row)}
+    catch(e){try{fs.unlinkSync(path.join(UPLOAD_ROOT,imagePath))}catch{};throw e}
     cache.delete('clock');
-    return json(res,200,{ok:true,date,time,type:body.type});
+    return json(res,200,{ok:true,date,time,type:body.type,approval,image:imagePath});
   }
 
   return json(res,404,{error:'Not found'});
@@ -289,7 +344,7 @@ const server=http.createServer(async(req,res)=>{
     return staticFile(req,res,url);
   } catch(e) {
     console.error(e);
-    return json(res,500,{error:e.message||'Internal error'});
+    return json(res,e.statusCode||500,{error:e.message||'Internal error'});
   }
 });
 server.listen(PORT,()=>console.log(`TBH HR listening on :${PORT}`));

@@ -13,7 +13,7 @@ RELEASE="$RELEASES/$sha"
 ACTIVE_FILE="$ROOT/ACTIVE_SHA"
 PREVIOUS=""
 
-mkdir -p "$RELEASES" "$SHARED/secrets"
+mkdir -p "$RELEASES" "$SHARED/secrets" "$SHARED/uploads/clock-images"
 
 if [ ! -d "$REPO/.git" ]; then
   rm -rf "$REPO"
@@ -61,6 +61,7 @@ git -C "$REPO" archive "$sha" | tar -x -C "$RELEASE"
 
 ln -sfn "$SHARED/.env" "$RELEASE/.env"
 ln -sfn "$SHARED/secrets" "$RELEASE/secrets"
+ln -sfn "$SHARED/uploads" "$RELEASE/uploads"
 
 HOST_PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$SHARED/.env" | tail -n 1)
 HOST_PORT=${HOST_PORT:-18180}

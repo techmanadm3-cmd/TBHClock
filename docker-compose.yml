@@ -12,5 +12,6 @@ services:
       CLOCK_CACHE_SECONDS: 120
     volumes:
       - ./secrets/google-service-account.json:/run/secrets/google-service-account.json:ro
+      - ./uploads:/app/uploads
     ports:
       - "127.0.0.1:${TBHCLOCK_HOST_PORT:-18180}:8080"
