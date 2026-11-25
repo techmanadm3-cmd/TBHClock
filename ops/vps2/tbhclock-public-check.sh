@@ -2,14 +2,19 @@
 set -eu
 ROOT=/opt/tbhclock
 ENVFILE="$ROOT/shared/.env"
-PORT=18180
+ACTIVE_PORT_FILE="$ROOT/ACTIVE_PORT"
+PORT=""
 DOMAIN=""
 
+if [ -f "$ACTIVE_PORT_FILE" ]; then PORT=$(cat "$ACTIVE_PORT_FILE" || true); fi
 if [ -f "$ENVFILE" ]; then
-  p=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1)
-  [ -n "$p" ] && PORT="$p"
+  if [ -z "$PORT" ]; then
+    p=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1)
+    [ -n "$p" ] && PORT="$p"
+  fi
   DOMAIN=$(sed -n 's/^TBHCLOCK_PUBLIC_DOMAIN=//p' "$ENVFILE" | tail -n 1)
 fi
+PORT=${PORT:-18180}
 
 if command -v nginx >/dev/null 2>&1; then echo "NGINX=READY"; else echo "NGINX=MISSING"; fi
 if command -v certbot >/dev/null 2>&1; then echo "CERTBOT=READY"; else echo "CERTBOT=MISSING"; fi
@@ -21,6 +26,7 @@ else
   echo "APP_DEEP_HEALTH=FAIL"
   exit 71
 fi
+echo "APP_ACTIVE_PORT=$PORT"
 
 if [ -z "$DOMAIN" ]; then
   echo "PUBLIC_DOMAIN=HOLD"

@@ -6,13 +6,15 @@ on:
     branches: [main]
     paths-ignore:
       - ".github/workflows/runner-check.yml"
+      - ".github/workflows/validate.yml"
+      - "ops/vps2/**"
 
 permissions:
   contents: read
 
 concurrency:
   group: tbhclock-main-pipeline
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate:

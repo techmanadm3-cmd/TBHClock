@@ -5,6 +5,7 @@ ROOT=/opt/tbhclock
 SHARED="$ROOT/shared"
 ENVFILE="$SHARED/.env"
 CRED="$SHARED/secrets/google-service-account.json"
+ACTIVE_PORT_FILE="$ROOT/ACTIVE_PORT"
 
 hold() {
   echo "$1"
@@ -41,7 +42,9 @@ fi
 echo "GOOGLE_CREDENTIAL=READY"
 echo "RUNTIME_CONFIG=READY"
 
-HOST_PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1)
+HOST_PORT=""
+if [ -f "$ACTIVE_PORT_FILE" ]; then HOST_PORT=$(cat "$ACTIVE_PORT_FILE" || true); fi
+if [ -z "$HOST_PORT" ]; then HOST_PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1); fi
 HOST_PORT=${HOST_PORT:-18180}
 PUBLIC_DOMAIN=$(sed -n 's/^TBHCLOCK_PUBLIC_DOMAIN=//p' "$ENVFILE" | tail -n 1)
 
@@ -54,6 +57,7 @@ if printf '%s' "$body" | grep -q '"googleSheets":true'; then
 else
   echo "APP_DEEP_HEALTH=HOLD"
 fi
+echo "APP_ACTIVE_PORT=$HOST_PORT"
 
 if [ -z "$PUBLIC_DOMAIN" ]; then
   echo "PUBLIC_DOMAIN=HOLD"

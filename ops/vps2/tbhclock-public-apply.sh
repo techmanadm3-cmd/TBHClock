@@ -2,13 +2,17 @@
 set -eu
 ROOT=/opt/tbhclock
 ENVFILE="$ROOT/shared/.env"
+ACTIVE_PORT_FILE="$ROOT/ACTIVE_PORT"
 SITE_AVAIL=/etc/nginx/sites-available/tbhclock
 SITE_ENABLED=/etc/nginx/sites-enabled/tbhclock
 
 [ -f "$ENVFILE" ] || { echo "RUNTIME_ENV=MISSING" >&2; exit 71; }
 DOMAIN=$(sed -n 's/^TBHCLOCK_PUBLIC_DOMAIN=//p' "$ENVFILE" | tail -n 1)
-PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1)
+PORT="${1:-}"
+if [ -z "$PORT" ] && [ -f "$ACTIVE_PORT_FILE" ]; then PORT=$(cat "$ACTIVE_PORT_FILE" || true); fi
+if [ -z "$PORT" ]; then PORT=$(sed -n 's/^TBHCLOCK_HOST_PORT=//p' "$ENVFILE" | tail -n 1); fi
 PORT=${PORT:-18180}
+case "$PORT" in *[!0-9]*|'') echo "PUBLIC_PORT=INVALID" >&2; exit 72 ;; esac
 PUBLIC_IP=$(sed -n 's/^TBHCLOCK_PUBLIC_IP=//p' "$ENVFILE" | tail -n 1)
 PUBLIC_IP=${PUBLIC_IP:-218.208.91.225}
 
@@ -42,9 +46,6 @@ fi
 CERT_FULLCHAIN="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 CERT_PRIVKEY="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
 
-# Existing HTTPS config: keep the certificate configuration that Certbot created
-# and only refresh the local upstream port. This avoids re-running Certbot on
-# every application deploy.
 if [ -s "$CERT_FULLCHAIN" ] && [ -s "$CERT_PRIVKEY" ] && [ -f "$SITE_AVAIL" ] && grep -q 'listen 443' "$SITE_AVAIL"; then
   sed -i -E "s#proxy_pass http://127\.0\.0\.1:[0-9]+;#proxy_pass http://127.0.0.1:$PORT;#g" "$SITE_AVAIL"
   ln -sfn "$SITE_AVAIL" "$SITE_ENABLED"
@@ -85,6 +86,7 @@ printf '%s' "$body" | grep -q '"googleSheets":true' || {
 }
 
 echo "PUBLIC_DOMAIN=$DOMAIN"
+echo "PUBLIC_PORT=$PORT"
 echo "PUBLIC_DNS=READY"
 echo "PUBLIC_HTTPS=READY"
 echo "PUBLIC_HTTPS_HEALTH=PASS"
