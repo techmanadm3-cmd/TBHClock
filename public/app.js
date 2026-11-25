@@ -41,14 +41,34 @@ function renderClockLocation(){
     return;
   }
   input.value=clockLocation.latitude.toFixed(6)+', '+clockLocation.longitude.toFixed(6);
-  meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Captured automatically';
   frame.src=mapEmbedUrl(clockLocation.latitude,clockLocation.longitude);
   frame.classList.remove('hidden');
-  if(actionRow)actionRow.classList.add('hidden');
-  setLocationPermissionHelp(false);
+
+  const lowAccuracy=Number(clockLocation.accuracy)>GPS_MAX_ACCURACY_M;
+  if(lowAccuracy){
+    meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Location captured · Low accuracy — not accepted for Clock';
+    setLocationPermissionHelp(true);
+  }else{
+    meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Location accepted for Clock';
+    if(actionRow)actionRow.classList.add('hidden');
+    setLocationPermissionHelp(false);
+  }
 }
 const GPS_TARGET_ACCURACY_M=100;
 const GPS_MAX_ACCURACY_M=200;
+function positionToClockLocation(position){
+  if(!position||!position.coords)return null;
+  const latitude=Number(position.coords.latitude);
+  const longitude=Number(position.coords.longitude);
+  const accuracy=Number(position.coords.accuracy);
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy))return null;
+  return {
+    latitude,
+    longitude,
+    accuracy,
+    capturedAt:new Date(position.timestamp||Date.now()).toISOString()
+  };
+}
 function locationErrorMessage(error){
   if(error&&error.code===1)return 'Location permission was denied. Please allow Location for this website in your phone settings.';
   if(error&&error.code===2)return 'Current location is unavailable. Please make sure Location Services and GPS are enabled.';
@@ -66,7 +86,7 @@ function collectAccuratePosition({force=false,onProgress}={}){
     const finish=(fn,value)=>{if(settled)return;settled=true;cleanup();fn(value)};
     const timer=setTimeout(()=>{
       if(best&&Number(best.coords?.accuracy)<=GPS_MAX_ACCURACY_M)return finish(resolve,best);
-      if(best)return finish(reject,{code:4,accuracy:Number(best.coords?.accuracy),message:'Location accuracy too low'});
+      if(best)return finish(reject,{code:4,accuracy:Number(best.coords?.accuracy),position:best,message:'Location accuracy too low'});
       return finish(reject,{code:3,message:'Location request timed out'});
     },12000);
     watchId=navigator.geolocation.watchPosition(position=>{
@@ -113,24 +133,36 @@ async function captureClockLocation({silent=false,force=false}={}){
       force,
       onProgress:(best)=>{
         if(requestId!==clockLocationRequestSeq)return;
+        const bestLocation=positionToClockLocation(best);
+        if(bestLocation){
+          clockLocation=bestLocation;
+          renderClockLocation();
+        }
         const bestAccuracy=Number(best?.coords?.accuracy);
-        if(input)input.value='Improving GPS accuracy...';
-        if(meta&&Number.isFinite(bestAccuracy))meta.textContent='Best GPS accuracy ±'+Math.round(bestAccuracy)+' m · Need ≤'+GPS_MAX_ACCURACY_M+' m to Clock';
+        if(meta&&Number.isFinite(bestAccuracy)){
+          meta.textContent='Best GPS accuracy ±'+Math.round(bestAccuracy)+' m · Improving position · Need ≤'+GPS_MAX_ACCURACY_M+' m to Clock';
+        }
       }
     });
     if(requestId!==clockLocationRequestSeq)return null;
     const accuracy=Number(position.coords.accuracy||0);
     if(!Number.isFinite(accuracy)||accuracy>GPS_MAX_ACCURACY_M)throw {code:4,accuracy};
-    clockLocation={
-      latitude:Number(position.coords.latitude),
-      longitude:Number(position.coords.longitude),
-      accuracy,
-      capturedAt:new Date(position.timestamp||Date.now()).toISOString()
-    };
+    clockLocation=positionToClockLocation(position);
     renderClockLocation();
     return clockLocation;
   }catch(e){
     if(requestId!==clockLocationRequestSeq)return null;
+
+    if(e&&e.code===4&&e.position){
+      clockLocation=positionToClockLocation(e.position);
+      if(clockLocation){
+        renderClockLocation();
+        if(meta)meta.textContent=locationErrorMessage(e)+' Location is shown below but cannot be used to Save Clock.';
+        if(!silent)toast(locationErrorMessage(e),'error');
+        return clockLocation;
+      }
+    }
+
     clockLocation=null;
     if(input)input.value='Location unavailable';
     if(meta)meta.textContent=locationErrorMessage(e);
@@ -145,11 +177,12 @@ async function captureClockLocation({silent=false,force=false}={}){
 }
 async function ensureFreshClockLocation(){
   const capturedMs=clockLocation?Date.parse(clockLocation.capturedAt):0;
-  if(!clockLocation || !Number.isFinite(capturedMs) || Date.now()-capturedMs>2*60*1000){
-    await captureClockLocation({silent:false});
+  const lowAccuracy=clockLocation&&Number(clockLocation.accuracy)>GPS_MAX_ACCURACY_M;
+  if(!clockLocation || lowAccuracy || !Number.isFinite(capturedMs) || Date.now()-capturedMs>2*60*1000){
+    await captureClockLocation({silent:false,force:!!lowAccuracy});
   }
   if(!clockLocation)throw new Error('Location access is required to clock in/out. Please enable Location permission.');
-  if(Number(clockLocation.accuracy)>GPS_MAX_ACCURACY_M)throw new Error('Location accuracy is too low. Please turn Precise Location ON and retry.');
+  if(Number(clockLocation.accuracy)>GPS_MAX_ACCURACY_M)throw new Error('Location was captured, but GPS accuracy is too low for Clock. Please turn Precise Location ON and retry.');
   return clockLocation;
 }
 function dataUrlBytes(dataUrl){
