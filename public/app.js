@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
@@ -18,18 +18,17 @@ function googleMapsUrl(latitude,longitude){
   return 'https://www.google.com/maps?q='+Number(latitude).toFixed(6)+','+Number(longitude).toFixed(6);
 }
 function renderClockLocation(){
-  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),frame=$('#clockLocationMap');
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),frame=$('#clockLocationMap'),retry=$('#retryLocationBtn');
   if(!input||!meta||!frame)return;
   if(isDesktopClockBlocked()){
     input.value='Available when clocking on mobile';
     meta.textContent='Desktop view is read-only. Location is captured automatically on the employee phone.';
     frame.removeAttribute('src');
     frame.classList.add('hidden');
+    if(retry)retry.classList.add('hidden');
     return;
   }
   if(!clockLocation){
-    input.value='Getting current location...';
-    meta.textContent='Location captured automatically from this device.';
     frame.removeAttribute('src');
     frame.classList.add('hidden');
     return;
@@ -38,23 +37,49 @@ function renderClockLocation(){
   meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Captured automatically';
   frame.src=mapEmbedUrl(clockLocation.latitude,clockLocation.longitude);
   frame.classList.remove('hidden');
+  if(retry)retry.classList.add('hidden');
 }
-async function captureClockLocation({silent=false}={}){
+function locationErrorMessage(error){
+  if(error&&error.code===1)return 'Location permission was denied. Please allow Location for this website in your phone settings.';
+  if(error&&error.code===2)return 'Current location is unavailable. Please make sure Location Services and GPS are enabled.';
+  if(error&&error.code===3)return 'Location request timed out. Please retry.';
+  return 'Unable to get current location. Please retry.';
+}
+async function captureClockLocation({silent=false,force=false}={}){
   if(isDesktopClockBlocked()){clockLocation=null;renderClockLocation();return null}
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),retry=$('#retryLocationBtn'),frame=$('#clockLocationMap');
+  const requestId=++clockLocationRequestSeq;
+  if(input)input.value='Getting current location...';
+  if(meta)meta.textContent='Please allow Location permission. This is required for Clock.';
+  if(retry)retry.classList.add('hidden');
+  if(frame){frame.removeAttribute('src');frame.classList.add('hidden')}
+
   if(!navigator.geolocation){
-    clockLocation=null;renderClockLocation();
+    if(requestId!==clockLocationRequestSeq)return null;
+    clockLocation=null;
+    if(input)input.value='Location unavailable';
+    if(meta)meta.textContent='Location is not available in this browser. Please use your phone.';
+    if(retry)retry.classList.remove('hidden');
     if(!silent)toast('Location is not available in this browser. Please use your phone.','error');
     return null;
   }
-  const input=$('#clockLocation'),meta=$('#clockLocationMeta');
-  if(input)input.value='Getting current location...';
-  if(meta)meta.textContent='Please allow Location permission. This is required for Clock.';
+
   try{
-    const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{
-      enableHighAccuracy:true,
-      timeout:15000,
-      maximumAge:0
-    }));
+    const position=await new Promise((resolve,reject)=>{
+      let settled=false;
+      const finish=(fn,value)=>{if(settled)return;settled=true;clearTimeout(fallbackTimer);fn(value)};
+      const fallbackTimer=setTimeout(()=>finish(reject,{code:3,message:'Location request timed out'}),12000);
+      navigator.geolocation.getCurrentPosition(
+        p=>finish(resolve,p),
+        e=>finish(reject,e),
+        {
+          enableHighAccuracy:true,
+          timeout:10000,
+          maximumAge:force?0:15000
+        }
+      );
+    });
+    if(requestId!==clockLocationRequestSeq)return null;
     clockLocation={
       latitude:Number(position.coords.latitude),
       longitude:Number(position.coords.longitude),
@@ -64,12 +89,13 @@ async function captureClockLocation({silent=false}={}){
     renderClockLocation();
     return clockLocation;
   }catch(e){
+    if(requestId!==clockLocationRequestSeq)return null;
     clockLocation=null;
     if(input)input.value='Location unavailable';
-    if(meta)meta.textContent='Location permission is required to clock in/out.';
-    const frame=$('#clockLocationMap');
+    if(meta)meta.textContent=locationErrorMessage(e);
     if(frame){frame.removeAttribute('src');frame.classList.add('hidden')}
-    if(!silent)toast('Location access is required to clock in/out. Please enable Location permission.','error');
+    if(retry)retry.classList.remove('hidden');
+    if(!silent)toast(locationErrorMessage(e),'error');
     return null;
   }
 }
@@ -140,7 +166,13 @@ async function openClockCamera(){
     stopClockCamera();
     capturedClockImage=null;
     $('#cameraPreviewWrap').classList.add('hidden');
-    cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+
+    // Start both permission-sensitive requests from the same real user tap.
+    // This is more reliable on iPhone Safari than relying only on page-load geolocation.
+    const locationPromise=captureClockLocation({silent:true,force:true});
+    const mediaPromise=navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    cameraStream=await mediaPromise;
+    await locationPromise;
     const video=$('#clockCamera');
     video.srcObject=cameraStream;
     await video.play();
@@ -450,6 +482,7 @@ $('#openCameraBtn').onclick=openClockCamera;
 $('#capturePhotoBtn').onclick=captureClockPhoto;
 $('#cancelCameraBtn').onclick=()=>{stopClockCamera();$('#cameraIdle').classList.remove('hidden')};
 $('#retakePhotoBtn').onclick=()=>{clearClockPhoto();openClockCamera()};
+$('#retryLocationBtn').onclick=()=>captureClockLocation({silent:false,force:true});
 $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;

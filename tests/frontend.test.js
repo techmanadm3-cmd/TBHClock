@@ -62,4 +62,10 @@ assert(server.includes('locationValue'), 'Clock sheet must save canonical GPS va
 assert(app.includes('data-clock-map'), 'Clock Master View Map action missing');
 assert(app.includes('https://www.openstreetmap.org/export/embed.html'), 'Embedded employee/manager map provider missing');
 assert(app.includes('https://www.google.com/maps?q='), 'Open in Google Maps link missing');
+assert(html.includes('id="retryLocationBtn"'), 'Location retry control missing');
+assert(app.includes("setTimeout(()=>finish(reject,{code:3,message:'Location request timed out'}),12000)"), 'Own GPS timeout guard missing');
+assert(app.includes("captureClockLocation({silent:true,force:true})"), 'Open Camera must force GPS from user gesture');
+assert(app.includes("maximumAge:force?0:15000"), 'Forced GPS refresh must bypass cached position');
+assert(app.includes('clockLocationRequestSeq'), 'Stale GPS request protection missing');
+assert(app.includes('locationErrorMessage(error)'), 'Readable GPS failure state missing');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
