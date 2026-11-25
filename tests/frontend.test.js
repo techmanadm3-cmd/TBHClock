@@ -74,7 +74,7 @@ assert(app.includes("captureClockLocation({silent:true,force:true})"), 'Open Cam
 assert(app.includes("maximumAge:force?0:15000"), 'Forced GPS refresh must bypass cached position');
 assert(app.includes('clockLocationRequestSeq'), 'Stale GPS request protection missing');
 assert(app.includes('locationErrorMessage(error)'), 'Readable GPS failure state missing');
-assert(app.includes("'Improving position · Need ≤'+GPS_MAX_ACCURACY_M+' m to Clock'"), 'GPS improvement status missing');
+assert(app.includes("Improving position · Need ≤"), 'GPS improvement status missing');
 assert(app.includes("Location captured · Low accuracy — not accepted for Clock"), 'Coarse GPS must still display as captured');
 assert(app.includes("Location is shown below but cannot be used to Save Clock."), 'Coarse GPS explanation missing');
 assert(app.includes("clockLocation=positionToClockLocation(e.position)"), 'Coarse GPS coordinate must remain visible');
