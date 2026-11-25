@@ -78,39 +78,50 @@ function shiftYmd(ymd, days) {
 
 function isExplicitNonWorkingDay(dim) {
   const day = String(dim?.Day || '').trim().toUpperCase();
-  return ['PH','PUBLIC HOLIDAY','SUN','SUNDAY','REST DAY'].includes(day);
+  return ['PH','PUBLIC HOLIDAY','REST DAY','OFF','OFF DAY'].includes(day);
 }
 
-function hasStaffClockInOnDate({dateYmd, staff, clockRows=[]}) {
-  const candidateDmy = ymdToDmy(dateYmd);
-  const staffKey = String(staff?.Key || '').trim();
-  return clockRows.some(r =>
-    String(r.Date || '') === candidateDmy &&
-    String(r['Staff Name'] || '').trim() === staffKey &&
-    String(r.Type || '').trim() === 'In'
+function hasApplicableAssignment(staff, dateYmd, assignments) {
+  return assignments.some(a =>
+    String(a['Staff Code']).trim() === String(staff.Key).trim() &&
+    String(a.Active).toUpperCase() !== 'FALSE' &&
+    (!a['Effective From'] || a['Effective From'] <= dateYmd) &&
+    (!a['Effective To'] || a['Effective To'] >= dateYmd)
   );
 }
 
-function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, dateDimRows, clockRows=[], maxDays=21}) {
+function isDefaultNormalWorkDate(dateYmd, dim) {
+  if (isExplicitNonWorkingDay(dim)) return false;
+  const day = new Date(`${dateYmd}T12:00:00+08:00`).getDay();
+  return day >= 1 && day <= 5;
+}
+
+function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, dateDimRows, maxDays=21}) {
   for (let i=1; i<=maxDays; i++) {
     const candidate = shiftYmd(dateYmd, -i);
     const candidateDmy = ymdToDmy(candidate);
     const dim = dateDimRows.find(r => String(r.Date) === candidateDmy);
 
-    // An actual In is direct evidence that the staff worked that date.
-    // Do not let a missing schedule assignment or non-"WD" day label hide it.
-    if (hasStaffClockInOnDate({dateYmd:candidate, staff, clockRows})) return candidate;
-
-    // Only explicit rest/holiday labels are skipped. Weekday labels such as
-    // MON/TUE/WED are valid and the assigned schedule decides whether it is a workday.
+    // A normal working day is schedule-driven. Public holiday / explicit off
+    // days are excluded before checking the staff schedule.
     if (isExplicitNonWorkingDay(dim)) continue;
-    if (resolveAssignedSchedule(staff, candidate, assignments, rules)) return candidate;
+
+    if (hasApplicableAssignment(staff, candidate, assignments)) {
+      if (resolveAssignedSchedule(staff, candidate, assignments, rules)) return candidate;
+      continue;
+    }
+
+    // Active staff without an explicit schedule assignment follow the normal
+    // office fallback: Monday-Friday.
+    if (isDefaultNormalWorkDate(candidate, dim)) return candidate;
   }
   return '';
 }
 
 function isMissingOutFromPrevious(item) {
-  return !!item?.clockIn && !item?.clockOut;
+  // previousWorkDate is already confirmed as a normal working day.
+  // Therefore an Out is required even when the In record is also missing.
+  return !item?.clockOut;
 }
 
 function isAutoNightShift(dateYmd, inTime) {
@@ -204,4 +215,4 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
   return { date: dateYmd, dayType: dateDim?.Day || '', holiday: dateDim?.PH || '', kpi, items };
 }
 
-module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate, isAutoNightShift, isMissingOutFromPrevious, hasStaffClockInOnDate };
+module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate, isAutoNightShift, isMissingOutFromPrevious };

@@ -161,6 +161,26 @@ function setType(type){
   $$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type));
   updateClockStatus();
 }
+function clientClockSequenceError(type){
+  const date=$('#clockDate').value||todayMY();
+  const used=new Set((clockContext?.usedTypes||[]).map(x=>String(x)));
+
+  if(type==='In')return '';
+  if(type==='Overnight Out'){
+    return clockContext?.overnightOutAllowed
+      ? ''
+      : 'No valid Night Shift In found for the previous day. Overnight Out is not allowed.';
+  }
+  if(!used.has('In')){
+    return adjustment==='Yes'
+      ? 'No In record for '+date+'. Please make the In adjustment first.'
+      : 'No In record for today. Please clock In first.';
+  }
+  if(type==='Lunch In'&&!used.has('Lunch Out'))return 'No Lunch Out record. Lunch In is not allowed.';
+  if(type==='Extra In'&&!used.has('Extra Out'))return 'No Extra Out record. Extra In is not allowed.';
+  if(type==='Outstation In'&&!used.has('Outstation Out'))return 'No Outstation Out record. Outstation In is not allowed.';
+  return '';
+}
 function setAdjustment(value){adjustment=value;$$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value));applyClockMode()}
 function applyClockMode(){
   const yes=adjustment==='Yes',today=todayMY();
@@ -179,6 +199,8 @@ async function saveClock(){
     if($('#clockDate').value>today) throw new Error('Future date is not allowed');
     if(adjustment==='Yes'&&!$('#clockRemarks').value.trim()) throw new Error('Remarks is required for Adjustment = Yes');
     if(adjustment==='No'&&$('#clockDate').value!==today) throw new Error('Past date is Adjustment only');
+    const sequenceError=clientClockSequenceError(selectedType);
+    if(sequenceError) throw new Error(sequenceError);
     if(!capturedClockImage) throw new Error('Clock Image is required. Please take a live photo.');
     if(capturedClockImage.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
     btn.disabled=true;btn.classList.add('loading');

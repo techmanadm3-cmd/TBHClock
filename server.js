@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { GoogleSheetsClient } = require('./src/googleSheets');
-const { rowsToObjects, buildDailyAttendance, findPreviousScheduledWorkDate, isMissingOutFromPrevious } = require('./src/attendance');
+const { rowsToObjects, buildDailyAttendance, findPreviousScheduledWorkDate, isMissingOutFromPrevious, isAutoNightShift } = require('./src/attendance');
 
 const PORT = Number(process.env.PORT || 8080);
 const APP_SECRET = process.env.APP_SECRET || 'dev-secret-change-me';
@@ -90,6 +90,54 @@ async function loadStaffSchedule() { return rowsToObjects(await cached('staffsch
 function ymdToDmyLocal(ymd) {
   const m=String(ymd||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function shiftYmdLocal(ymd, days) {
+  const d=new Date(`${ymd}T12:00:00+08:00`);
+  d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().slice(0,10);
+}
+function staffClockRowsForDate(clockRows,dateYmd,staffKey) {
+  const dmy=ymdToDmyLocal(dateYmd);
+  return clockRows.filter(r =>
+    String(r.Date||'')===dmy &&
+    String(r['Staff Name']||'').trim()===String(staffKey||'').trim()
+  );
+}
+function firstTypeRow(rows,type) {
+  return rows
+    .filter(r=>String(r.Type||'').trim()===type)
+    .sort((a,b)=>String(a.Time||'').localeCompare(String(b.Time||'')))[0] || null;
+}
+function validateClockSequence({type,dateYmd,staffKey,clockRows}) {
+  if(type==='In') return '';
+
+  if(type==='Overnight Out'){
+    const sourceDate=shiftYmdLocal(dateYmd,-1);
+    const sourceRows=staffClockRowsForDate(clockRows,sourceDate,staffKey);
+    const sourceIn=firstTypeRow(sourceRows,'In');
+    if(!sourceIn) return `No In record for ${sourceDate}. Overnight Out is not allowed.`;
+    if(!isAutoNightShift(sourceDate,sourceIn.Time)) return `The In record for ${sourceDate} is not a Night Shift. Overnight Out is not allowed.`;
+    return '';
+  }
+
+  const dayRows=staffClockRowsForDate(clockRows,dateYmd,staffKey);
+  const inRow=firstTypeRow(dayRows,'In');
+  if(!inRow) return `No In record for ${dateYmd}. Please clock In first.`;
+
+  if(type==='Out' && isAutoNightShift(dateYmd,inRow.Time)){
+    return 'Night Shift must use Overnight Out on the next day.';
+  }
+
+  const requiredPair={
+    'Lunch In':'Lunch Out',
+    'Extra In':'Extra Out',
+    'Outstation In':'Outstation Out'
+  }[type];
+  if(requiredPair && !firstTypeRow(dayRows,requiredPair)){
+    return `No ${requiredPair} record for ${dateYmd}. ${type} is not allowed.`;
+  }
+
+  return '';
 }
 function clockMinutes(value) {
   if(!value) return null;
@@ -181,7 +229,7 @@ async function routeApi(req, res, url) {
     const daily = buildDailyAttendance({dateYmd:date,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
     const current = daily.items[0] || {};
     const previousWorkDate = findPreviousScheduledWorkDate({
-      dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows,clockRows
+      dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows
     });
     let previousIn = '';
     let previousOut = '';
@@ -200,6 +248,10 @@ async function routeApi(req, res, url) {
         .map(r => String(r.Type || '').trim())
         .filter(Boolean)
     )];
+    const overnightSourceDate=shiftYmdLocal(date,-1);
+    const overnightSourceRows=staffClockRowsForDate(clockRows,overnightSourceDate,staff.Key);
+    const overnightSourceIn=firstTypeRow(overnightSourceRows,'In');
+    const overnightOutAllowed=!!overnightSourceIn && isAutoNightShift(overnightSourceDate,overnightSourceIn.Time);
     return json(res,200,{
       date,
       staffCode:staff.Key,
@@ -211,7 +263,9 @@ async function routeApi(req, res, url) {
       currentIn:current.clockIn || '',
       previousIn,
       previousOut,
-      usedTypes
+      usedTypes,
+      overnightSourceDate,
+      overnightOutAllowed
     });
   }
 
@@ -400,6 +454,17 @@ async function routeApi(req, res, url) {
       if(duplicate) return json(res,409,{
         error:'You have already recorded '+body.type+' for '+dateYmd+'.',
         code:'DUPLICATE_CLOCK_TYPE'
+      });
+
+      const sequenceError=validateClockSequence({
+        type:body.type,
+        dateYmd,
+        staffKey:staff.Key,
+        clockRows:freshClockRows
+      });
+      if(sequenceError) return json(res,409,{
+        error:sequenceError,
+        code:'INVALID_CLOCK_SEQUENCE'
       });
 
       let imagePath='';

@@ -16,9 +16,16 @@ assert(!app.includes("$('#clockStaff').value"), 'Clock form must not submit a se
 assert(app.includes("label.textContent='Missing Out'"), 'Type In Missing Out label missing');
 assert(app.includes("field.value=missing?'Yes':'No'"), 'Missing flag Yes/No rendering missing');
 assert(app.includes("Please make adjustment for yesterday Out."), 'Missing Out adjustment note missing');
-assert(server.includes('missingOut = isMissingOutFromPrevious(previousItem)'), 'Missing Out must require previous In without matching Out');
-assert(server.includes('dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows,clockRows'), 'Previous work date must consider actual Clock rows');
+assert(server.includes('missingOut = isMissingOutFromPrevious(previousItem)'), 'Missing Out must be based on previous normal workday Out');
+assert(server.includes('function validateClockSequence'), 'Clock sequence validation missing');
+assert(server.includes("if(!inRow) return \`No In record for \${dateYmd}. Please clock In first.\`;"), 'Out and paired clock types must require In');
+assert(server.includes("type==='Overnight Out'"), 'Overnight Out sequence rule missing');
+assert(server.includes("Night Shift must use Overnight Out on the next day."), 'Night Shift Out restriction missing');
+assert(server.includes("code:'INVALID_CLOCK_SEQUENCE'"), 'Invalid sequence API guard missing');
 assert(app.includes("Please make adjustment for today In."), 'Missing In adjustment note missing');
+assert(app.includes('function clientClockSequenceError(type)'), 'Client sequence validation missing');
+assert(app.includes('Please make the In adjustment first.'), 'Adjustment sequence guidance missing');
+assert(app.includes('No valid Night Shift In found for the previous day.'), 'Overnight Out client guard missing');
 
 assert(!html.includes('type="file"'), 'Clock image must not expose a file upload control');
 assert(html.includes('id="clockCamera"'), 'Live camera video element missing');

@@ -75,7 +75,7 @@ console.log('night shift tests PASS');
 
 
 const techmanLikeStaff={Key:'TECHMAN','Staff Name':'Techman','Department1':'IT',Status:'Active'};
-const actualClockFallback=findPreviousScheduledWorkDate({
+const defaultNormalWorkday=findPreviousScheduledWorkDate({
   dateYmd:'2026-11-25',
   staff:techmanLikeStaff,
   assignments:[],
@@ -83,13 +83,29 @@ const actualClockFallback=findPreviousScheduledWorkDate({
   dateDimRows:[
     {Date:'24/11/2026',Day:'TUE'},
     {Date:'25/11/2026',Day:'WED'}
-  ],
-  clockRows:[
-    {Date:'24/11/2026',Time:'08:00:00','Staff Name':'TECHMAN',Type:'In'}
   ]
 });
-assert.equal(actualClockFallback,'2026-11-24','actual prior In must identify previous work date even without schedule assignment');
-assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:''}),true,'prior In without Out must be Missing Out');
-assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:'17:45:00'}),false,'prior In with Out must not be Missing Out');
-assert.equal(isMissingOutFromPrevious({clockIn:'',clockOut:''}),false,'absence without In must not be Missing Out');
+assert.equal(defaultNormalWorkday,'2026-11-24','active unassigned staff must still have a normal Mon-Fri workday');
+assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:''}),true,'normal workday In without Out must be Missing Out');
+assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:'17:45:00'}),false,'normal workday with Out must not be Missing Out');
+assert.equal(isMissingOutFromPrevious({clockIn:'',clockOut:''}),true,'normal workday without In and Out still requires Out; In must be corrected first');
 console.log('missing out condition tests PASS');
+
+
+const saturdayAssignedStaff={Key:'SAT1','Staff Name':'Saturday Staff','Department1':'OPS',Status:'Active'};
+const saturdayAssignments=[{'Staff Code':'SAT1','Schedule ID':'SAT_STD','Shift Variant':'NORMAL','Effective From':'2026-01-01',Active:'TRUE',Priority:'10'}];
+const saturdayRules=[
+  {'Schedule ID':'SAT_STD','Schedule Name':'Saturday Ops','Shift Variant':'NORMAL','Day Rule':'SAT','Start Time':'08:00','End Time':'16:30',Active:'TRUE'}
+];
+assert.equal(findPreviousScheduledWorkDate({
+  dateYmd:'2026-11-30',
+  staff:saturdayAssignedStaff,
+  assignments:saturdayAssignments,
+  rules:saturdayRules,
+  dateDimRows:[
+    {Date:'28/11/2026',Day:'SAT'},
+    {Date:'29/11/2026',Day:'SUN'},
+    {Date:'30/11/2026',Day:'MON'}
+  ]
+}),'2026-11-28','explicit Saturday schedule must override Mon-Fri fallback');
+console.log('schedule-driven previous workday tests PASS');
