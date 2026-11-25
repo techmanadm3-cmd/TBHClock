@@ -227,3 +227,7 @@ body{background:#f3f6fb}
   .today-staff-card{min-height:76px}
   .report-data-table{min-width:1050px}
 }
+
+/* Clock login-bound staff and dynamic validation */
+#clockStaffName,#clockDepartment{font-weight:700;color:#16375f;background:#f8fafc}
+#clockCheckStatus{font-weight:700}

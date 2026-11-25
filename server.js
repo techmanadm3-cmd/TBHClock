@@ -127,8 +127,8 @@ async function routeApi(req, res, url) {
     const {username, password} = await readJson(req);
     const staff = (await loadStaff()).find(s => s.Username === username && s.Password === password && String(s.Status).toLowerCase() === 'active');
     if (!staff) return json(res, 401, {error:'Invalid username or password'});
-    const token = signSession({ staffCode: staff.Key, name: staff['Staff Name'], permission: staff.Permission || 'STAFF', exp: Date.now()+12*60*60*1000 });
-    return json(res, 200, {ok:true, user:{staffCode:staff.Key,name:staff['Staff Name'],permission:staff.Permission}}, {'set-cookie':`hr_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`});
+    const token = signSession({ staffCode: staff.Key, name: staff['Staff Name'], department: staff.Department1 || '', permission: staff.Permission || 'STAFF', exp: Date.now()+12*60*60*1000 });
+    return json(res, 200, {ok:true, user:{staffCode:staff.Key,name:staff['Staff Name'],department:staff.Department1||'',permission:staff.Permission}}, {'set-cookie':`hr_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=43200`});
   }
   if (req.method === 'POST' && url.pathname === '/api/logout') {
     return json(res, 200, {ok:true}, {'set-cookie':'hr_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0'});
@@ -283,9 +283,7 @@ async function routeApi(req, res, url) {
     if(!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
 
     const staffRows=await loadStaff();
-    const canSelectStaff=String(user.permission||'').toUpperCase()!=='STAFF';
-    const targetStaffCode=canSelectStaff&&body.staffCode?body.staffCode:user.staffCode;
-    const staff=staffRows.find(s=>s.Key===targetStaffCode);
+    const staff=staffRows.find(s=>s.Key===user.staffCode);
     if(!staff) return json(res,404,{error:'Staff record not found'});
 
     const now=new Date();

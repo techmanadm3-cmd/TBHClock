@@ -1,7 +1,8 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockDayData=null,clockPrevDayData=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
+function shiftYmd(ymd,days){const d=new Date(`${ymd}T12:00:00+08:00`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)}
 function fileDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('Unable to read Clock Image'));r.readAsDataURL(file)})}
 async function api(url,opts={}){const r=await fetch(url,{headers:{'content-type':'application/json',...(opts.headers||{})},...opts});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -12,17 +13,48 @@ function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.
 async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applySavedSidebarState();await loadClockContext();setView('clock')}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
-async function loadClockContext(){try{const date=$('#clockDate').value||todayMY();data=await api(`/api/attendance/daily?date=${encodeURIComponent(date)}`);const items=data.items||[],sel=$('#clockStaff'),prev=sel.value;sel.innerHTML=items.map(x=>`<option value="${esc(x.staffCode)}">${esc(x.name)}${x.department?' · '+esc(x.department):''}</option>`).join('');if(!items.length)sel.innerHTML=`<option value="${esc(currentUser.staffCode)}">${esc(currentUser.name)}</option>`;if(prev&&items.some(x=>x.staffCode===prev))sel.value=prev;else if(items.some(x=>x.staffCode===currentUser.staffCode))sel.value=currentUser.staffCode;updateClockStatus()}catch(e){toast(e.message,'error')}}
-function updateClockStatus(){const row=(data?.items||[]).find(x=>x.staffCode===$('#clockStaff').value);$('#checkInStatus').value=row?.clockIn||'Missing In';$('#checkOutStatus').value=row?.clockOut||'Missing Out'}
-function setType(type){selectedType=type;$$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type))}
-function setAdjustment(value){adjustment=value;$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value));applyClockMode()}
+async function loadClockContext(){
+  try{
+    const date=$('#clockDate').value||todayMY();
+    const previousDate=shiftYmd(date,-1);
+    const [day,prev]=await Promise.all([
+      api(`/api/attendance/daily?date=${encodeURIComponent(date)}`),
+      api(`/api/attendance/daily?date=${encodeURIComponent(previousDate)}`)
+    ]);
+    clockDayData=day;
+    clockPrevDayData=prev;
+    const row=(day.items||[]).find(x=>x.staffCode===currentUser.staffCode);
+    $('#clockStaffName').value=currentUser.name||row?.name||'';
+    $('#clockDepartment').value=row?.department||'';
+    updateClockStatus();
+  }catch(e){toast(e.message,'error')}
+}
+function currentClockRow(source){return (source?.items||[]).find(x=>x.staffCode===currentUser.staffCode)}
+function updateClockStatus(){
+  const field=$('#clockCheckStatus'),label=$('#clockCheckLabel');
+  const todayRow=currentClockRow(clockDayData);
+  const prevRow=currentClockRow(clockPrevDayData);
+  if(selectedType==='In'){
+    label.classList.remove('hidden');field.classList.remove('hidden');
+    label.textContent='Previous Day Out';
+    field.value=prevRow?.clockOut ? `Out: ${prevRow.clockOut}` : 'Missing Out';
+  }else if(selectedType==='Out'){
+    label.classList.remove('hidden');field.classList.remove('hidden');
+    label.textContent='Check In';
+    field.value=todayRow?.clockIn ? `In: ${todayRow.clockIn}` : 'Missing In';
+  }else{
+    label.classList.add('hidden');field.classList.add('hidden');
+    field.value='';
+  }
+}
+function setType(type){selectedType=type;$$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type));updateClockStatus()}
+function setAdjustment(value){adjustment=value;$$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value));applyClockMode()}
 function applyClockMode(){
   const yes=adjustment==='Yes',today=todayMY();
   $('#clockDate').max=today;
   $('#clockDate').disabled=!yes;
   $('#clockTime').disabled=!yes;
   $('#remarksRequiredMark').classList.toggle('hidden',!yes);
-  $('#adjustmentHint').textContent=yes?'Date and time can be adjusted. Future date is not allowed. Remarks and approval are required.':'Current date and time only. Date and time cannot be changed.';
   if(!yes){$('#clockDate').value=today;$('#clockTime').value=timeMY();$('#clockRemarks').value=''}
 }
 async function saveClock(){
@@ -38,7 +70,7 @@ async function saveClock(){
     if(!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Clock Image must be JPEG, PNG or WebP');
     if(file.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
     btn.disabled=true;btn.classList.add('loading');
-    const payload={type:selectedType,staffCode:$('#clockStaff').value,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),image:{name:file.name,type:file.type,size:file.size,dataUrl:await fileDataUrl(file)}};
+    const payload={type:selectedType,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),image:{name:file.name,type:file.type,size:file.size,dataUrl:await fileDataUrl(file)}};
     const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});
     toast(`${selectedType} saved at ${j.time}`);
     $('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Required before Save';
@@ -175,8 +207,8 @@ $$('[data-report-panel]').forEach(b=>b.onclick=()=>setReportPanel(b.dataset.repo
 $$('[data-approval-tab]').forEach(b=>b.onclick=()=>setApprovalTab(b.dataset.approvalTab));
 $$('#typeGrid button').forEach(b=>b.onclick=()=>setType(b.dataset.type));
 $$('#adjustment button').forEach(b=>b.onclick=()=>setAdjustment(b.dataset.value));
-$('#clockDate').onchange=()=>{if($('#clockDate').value>todayMY()){$('#clockDate').value=todayMY();toast('Future date is not allowed','error')}loadClockContext()};
-$('#clockStaff').onchange=updateClockStatus;
+$('#clockDate').onchange=async()=>{if($('#clockDate').value>todayMY()){$('#clockDate').value=todayMY();toast('Future date is not allowed','error')}await loadClockContext()};
+
 $('#saveClockBtn').onclick=saveClock;
 $('#cancelClockBtn').onclick=resetClock;
 $('#clockImage').onchange=e=>{const f=e.target.files?.[0];if(f){$('#uploadTitle').textContent=f.name;$('#uploadHint').textContent=`${Math.max(1,Math.round(f.size/1024))} KB · ready to save`;}};
