@@ -236,3 +236,24 @@ body{background:#f3f6fb}
 #clockStaffName:disabled,#clockDepartment:disabled{opacity:1;background:#eef2f6;color:#5c6c80;-webkit-text-fill-color:#5c6c80}
 .missing-flag{font-weight:850}
 .warning-hint{color:#b54708;margin-top:6px;font-size:11px}
+
+
+/* Mobile-only live camera clock */
+.desktop-clock-block{border:1px solid #f3b7b2;background:#fff4f2;color:#8f241b;border-radius:14px;padding:20px 22px;display:flex;flex-direction:column;gap:6px}
+.desktop-clock-block strong{font-size:17px}
+.desktop-clock-block span{font-size:13px;line-height:1.5}
+.camera-box{min-height:170px;border:2px dashed #67a8e8;border-radius:14px;background:#f8fbff;overflow:hidden}
+.camera-idle{min-height:170px;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#25415f;padding:18px;text-align:center}
+.camera-idle strong{font-size:15px}
+.camera-idle span{font-size:12px;color:#526d8b;margin-top:3px}
+.camera-idle small{font-size:11px;color:#8393a6;margin-top:4px}
+.camera-action-btn{margin-top:13px;min-width:140px}
+.camera-live,.camera-preview-wrap{padding:12px;background:#07182a}
+.camera-live video,.camera-preview-wrap img{display:block;width:100%;max-height:56vh;object-fit:contain;border-radius:10px;background:#000}
+.camera-actions{display:flex;justify-content:center;gap:10px;padding-top:12px}
+.camera-actions .btn{min-width:120px}
+.type-grid button:disabled,.type-grid button.already-recorded{cursor:not-allowed;opacity:.48;background:#eef2f6;color:#68788b;border-color:#d3dce6;box-shadow:none}
+@media(max-width:760px){
+  .camera-box,.camera-idle{min-height:155px}
+  .camera-actions .btn{flex:1;min-height:48px}
+}

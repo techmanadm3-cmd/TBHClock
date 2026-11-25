@@ -16,6 +16,29 @@ const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(
 const sheets = new GoogleSheetsClient({ spreadsheetId: SPREADSHEET_ID, credentialsPath, credentialsJson });
 
 const cache = new Map();
+const clockSaveLocks = new Map();
+
+function isDesktopClockRequest(req) {
+  const ua = String(req.headers['user-agent'] || '');
+  const mobileUa = /(Android|iPhone|iPad|iPod|Mobile)/i.test(ua);
+  const desktopUa = /(Windows NT|Macintosh|X11|CrOS)/i.test(ua);
+  return desktopUa && !mobileUa;
+}
+async function withClockSaveLock(key, fn) {
+  const previous = clockSaveLocks.get(key) || Promise.resolve();
+  let release;
+  const current = new Promise(resolve => { release = resolve; });
+  const tail = previous.then(() => current);
+  clockSaveLocks.set(key, tail);
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (clockSaveLocks.get(key) === tail) clockSaveLocks.delete(key);
+  }
+}
+
 async function cached(key, ttl, fn) {
   const hit = cache.get(key);
   if (hit && Date.now() < hit.exp) return hit.value;
@@ -165,6 +188,13 @@ async function routeApi(req, res, url) {
       const previous = buildDailyAttendance({dateYmd:previousWorkDate,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
       previousOut = previous.items[0]?.clockOut || '';
     }
+    const dateDmy = ymdToDmyLocal(date);
+    const usedTypes = [...new Set(
+      clockRows
+        .filter(r => String(r.Date || '') === dateDmy && String(r['Staff Name'] || '').trim() === String(staff.Key || '').trim())
+        .map(r => String(r.Type || '').trim())
+        .filter(Boolean)
+    )];
     return json(res,200,{
       date,
       staffCode:staff.Key,
@@ -174,7 +204,8 @@ async function routeApi(req, res, url) {
       missingOut:!!previousWorkDate && !previousOut,
       missingIn:!current.clockIn,
       currentIn:current.clockIn || '',
-      previousOut
+      previousOut,
+      usedTypes
     });
   }
 
@@ -322,6 +353,8 @@ async function routeApi(req, res, url) {
     const body=await readJson(req);
     const allowed=new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
     if(!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
+    if(isDesktopClockRequest(req)) return json(res,403,{error:'Clock In/Out is only available on a mobile device. Please use your phone.'});
+    if(body.captureSource!=='camera') return json(res,400,{error:'Clock Image must be taken with the live camera.'});
 
     const staffRows=await loadStaff();
     const staff=staffRows.find(s=>s.Key===user.staffCode);
@@ -348,18 +381,33 @@ async function routeApi(req, res, url) {
       return json(res,400,{error:'Past date is Adjustment only'});
     }
 
-    let imagePath='';
-    try{imagePath=saveClockImage(body.image,staff.Key,dateYmd,time)}
-    catch(e){return json(res,400,{error:e.message})}
-
     const date=`${dateYmd.slice(8,10)}/${dateYmd.slice(5,7)}/${dateYmd.slice(0,4)}`;
-    const today=`${p.day}/${p.month}/${p.year}`;
-    const stamp=`${today} ${nowTime}`;
-    const row=[crypto.randomUUID(),date,time,staff.Key,body.type,body.location||'',remarks,adjustment,approval,'',imagePath,stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
-    try{await sheets.append('Clock!A:T',row)}
-    catch(e){try{fs.unlinkSync(path.join(UPLOAD_ROOT,imagePath))}catch{};throw e}
-    cache.delete('clock');
-    return json(res,200,{ok:true,date,time,type:body.type,approval,image:imagePath});
+    const uniqueKey=[dateYmd,staff.Key,body.type].join('|');
+
+    return await withClockSaveLock(uniqueKey,async()=>{
+      const freshClockRows=rowsToObjects(await sheets.get('Clock!A:T'));
+      const duplicate=freshClockRows.find(r =>
+        String(r.Date||'')===date &&
+        String(r['Staff Name']||'').trim()===String(staff.Key||'').trim() &&
+        String(r.Type||'').trim()===String(body.type||'').trim()
+      );
+      if(duplicate) return json(res,409,{
+        error:'You have already recorded '+body.type+' for '+dateYmd+'.',
+        code:'DUPLICATE_CLOCK_TYPE'
+      });
+
+      let imagePath='';
+      try{imagePath=saveClockImage(body.image,staff.Key,dateYmd,time)}
+      catch(e){return json(res,400,{error:e.message})}
+
+      const today=`${p.day}/${p.month}/${p.year}`;
+      const stamp=`${today} ${nowTime}`;
+      const row=[uniqueKey,date,time,staff.Key,body.type,body.location||'',remarks,adjustment,approval,'',imagePath,stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
+      try{await sheets.append('Clock!A:T',row)}
+      catch(e){try{fs.unlinkSync(path.join(UPLOAD_ROOT,imagePath))}catch{};throw e}
+      cache.delete('clock');
+      return json(res,200,{ok:true,key:uniqueKey,date,time,type:body.type,approval,image:imagePath});
+    });
   }
 
   return json(res,404,{error:'Not found'});

@@ -72,6 +72,11 @@
       </div>
 
       <section class="clock-card">
+        <div id="desktopClockBlock" class="desktop-clock-block hidden">
+          <strong>Mobile clock only</strong>
+          <span>Clock In/Out is disabled on desktop. Please use your phone and take a live camera photo.</span>
+        </div>
+        <div id="clockFormBody">
         <div class="form-grid">
           <label>Date <b>*</b></label>
           <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"><span>▣</span></div>
@@ -99,12 +104,28 @@
           </div>
 
           <label>Clock Image <b>*</b></label>
-          <div class="upload-box">
-            <input id="clockImage" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
-            <div class="camera-icon">▣</div>
-            <strong id="uploadTitle">Upload Clock Image</strong>
-            <span id="uploadHint">Required before Save</span>
-            <small>JPEG / PNG / WebP · max 8 MB</small>
+          <div class="camera-box">
+            <div id="cameraIdle" class="camera-idle">
+              <div class="camera-icon">▣</div>
+              <strong id="uploadTitle">Take Clock Photo</strong>
+              <span id="uploadHint">Live camera only · required before Save</span>
+              <small>No gallery or file upload</small>
+              <button type="button" id="openCameraBtn" class="btn outline camera-action-btn">Open Camera</button>
+            </div>
+            <div id="cameraLive" class="camera-live hidden">
+              <video id="clockCamera" autoplay playsinline muted></video>
+              <div class="camera-actions">
+                <button type="button" id="capturePhotoBtn" class="btn primary">Take Photo</button>
+                <button type="button" id="cancelCameraBtn" class="btn outline">Cancel</button>
+              </div>
+            </div>
+            <div id="cameraPreviewWrap" class="camera-preview-wrap hidden">
+              <img id="clockPhotoPreview" alt="Clock photo preview">
+              <div class="camera-actions">
+                <button type="button" id="retakePhotoBtn" class="btn outline">Retake Photo</button>
+              </div>
+            </div>
+            <canvas id="clockPhotoCanvas" class="hidden"></canvas>
           </div>
 
           <label>Adjustment <b>*</b></label>
@@ -125,6 +146,7 @@
         <div class="form-actions">
           <button id="cancelClockBtn" class="btn outline">Cancel</button>
           <button id="saveClockBtn" class="btn primary save-btn"><span>▣</span>Save</button>
+        </div>
         </div>
       </section>
     </section>

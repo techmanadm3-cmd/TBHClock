@@ -1,16 +1,92 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null;
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
 function shiftYmd(ymd,days){const d=new Date(`${ymd}T12:00:00+08:00`);d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)}
-function fileDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('Unable to read Clock Image'));r.readAsDataURL(file)})}
+function isDesktopClockDevice(){
+  const ua=String(navigator.userAgent||'');
+  const mobileUa=/(Android|iPhone|iPad|iPod|Mobile)/i.test(ua);
+  const desktopUa=/(Windows NT|Macintosh|X11|CrOS)/i.test(ua);
+  return desktopUa&&!mobileUa;
+}
+function dataUrlBytes(dataUrl){
+  const base64=String(dataUrl||'').split(',')[1]||'';
+  const padding=base64.endsWith('==')?2:(base64.endsWith('=')?1:0);
+  return Math.max(0,Math.floor(base64.length*3/4)-padding);
+}
+function stopClockCamera(){
+  if(cameraStream){cameraStream.getTracks().forEach(track=>track.stop());cameraStream=null}
+  const video=$('#clockCamera');
+  if(video)video.srcObject=null;
+  const live=$('#cameraLive');
+  if(live)live.classList.add('hidden');
+}
+function clearClockPhoto(){
+  stopClockCamera();
+  capturedClockImage=null;
+  const preview=$('#clockPhotoPreview');
+  if(preview)preview.removeAttribute('src');
+  const previewWrap=$('#cameraPreviewWrap');
+  if(previewWrap)previewWrap.classList.add('hidden');
+  const idle=$('#cameraIdle');
+  if(idle)idle.classList.remove('hidden');
+  if($('#uploadTitle'))$('#uploadTitle').textContent='Take Clock Photo';
+  if($('#uploadHint'))$('#uploadHint').textContent='Live camera only · required before Save';
+}
+function applyClockDevicePolicy(){
+  const desktop=isDesktopClockDevice();
+  $('#desktopClockBlock').classList.toggle('hidden',!desktop);
+  $('#clockFormBody').classList.toggle('hidden',desktop);
+  if(desktop)stopClockCamera();
+  return !desktop;
+}
+async function openClockCamera(){
+  if(isDesktopClockDevice()){toast('Clock In/Out is only available on mobile. Please use your phone.','error');return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Live camera is not available in this browser. Please use your phone camera.','error');return}
+  try{
+    stopClockCamera();
+    capturedClockImage=null;
+    $('#cameraPreviewWrap').classList.add('hidden');
+    cameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    const video=$('#clockCamera');
+    video.srcObject=cameraStream;
+    await video.play();
+    $('#cameraIdle').classList.add('hidden');
+    $('#cameraLive').classList.remove('hidden');
+  }catch(e){
+    stopClockCamera();
+    $('#cameraIdle').classList.remove('hidden');
+    toast('Camera access is required to clock in/out. Please allow camera permission.','error');
+  }
+}
+function captureClockPhoto(){
+  const video=$('#clockCamera');
+  if(!video||!video.videoWidth||!video.videoHeight){toast('Camera is not ready yet.','error');return}
+  const canvas=$('#clockPhotoCanvas');
+  const maxSide=1600;
+  const scale=Math.min(1,maxSide/Math.max(video.videoWidth,video.videoHeight));
+  canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
+  canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+  const size=dataUrlBytes(dataUrl);
+  if(size>8*1024*1024){toast('Clock Image must be 8 MB or smaller','error');return}
+  capturedClockImage={name:'clock-'+Date.now()+'.jpg',type:'image/jpeg',size,dataUrl};
+  $('#clockPhotoPreview').src=dataUrl;
+  stopClockCamera();
+  $('#cameraIdle').classList.add('hidden');
+  $('#cameraPreviewWrap').classList.remove('hidden');
+  $('#uploadTitle').textContent='Photo captured';
+  $('#uploadHint').textContent=Math.max(1,Math.round(size/1024))+' KB · live camera';
+}
 async function api(url,opts={}){const r=await fetch(url,{headers:{'content-type':'application/json',...(opts.headers||{})},...opts});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`HTTP ${r.status}`);return j}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.className=`toast ${type}`;clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.add('hidden'),3200)}
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applySavedSidebarState();await loadClockContext();setView('clock')}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock')}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){
@@ -19,6 +95,7 @@ async function loadClockContext(){
     clockContext=await api(`/api/clock/context?date=${encodeURIComponent(date)}`);
     $('#clockStaffName').value=clockContext.staffName||currentUser.name||'';
     $('#clockDepartment').value=clockContext.department||'';
+    applyUsedTypes();
     updateClockStatus();
   }catch(e){toast(e.message,'error')}
 }
@@ -43,7 +120,28 @@ function updateClockStatus(){
     field.value='';note.textContent='';note.classList.add('hidden');
   }
 }
-function setType(type){selectedType=type;$$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type));updateClockStatus()}
+function applyUsedTypes(){
+  const used=new Set((clockContext?.usedTypes||[]).map(x=>String(x)));
+  const buttons=$$('#typeGrid button');
+  buttons.forEach(b=>{
+    const recorded=used.has(b.dataset.type);
+    b.disabled=recorded;
+    b.classList.toggle('already-recorded',recorded);
+    b.title=recorded?b.dataset.type+' already recorded for this date':'';
+  });
+  if(used.has(selectedType)){
+    const next=buttons.find(b=>!b.disabled);
+    if(next)selectedType=next.dataset.type;
+  }
+  buttons.forEach(b=>b.classList.toggle('selected',b.dataset.type===selectedType));
+}
+function setType(type){
+  const button=$$('#typeGrid button').find(b=>b.dataset.type===type);
+  if(button&&button.disabled)return;
+  selectedType=type;
+  $$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type));
+  updateClockStatus();
+}
 function setAdjustment(value){adjustment=value;$$('#adjustment button').forEach(b=>b.classList.toggle('selected',b.dataset.value===value));applyClockMode()}
 function applyClockMode(){
   const yes=adjustment==='Yes',today=todayMY();
@@ -56,28 +154,28 @@ function applyClockMode(){
 async function saveClock(){
   const btn=$('#saveClockBtn');
   try{
+    if(isDesktopClockDevice()) throw new Error('Clock In/Out is only available on mobile. Please use your phone.');
     const today=todayMY();
     if(adjustment==='No'){$('#clockDate').value=today;$('#clockTime').value=timeMY()}
     if($('#clockDate').value>today) throw new Error('Future date is not allowed');
     if(adjustment==='Yes'&&!$('#clockRemarks').value.trim()) throw new Error('Remarks is required for Adjustment = Yes');
     if(adjustment==='No'&&$('#clockDate').value!==today) throw new Error('Past date is Adjustment only');
-    const file=$('#clockImage').files?.[0];
-    if(!file) throw new Error('Clock Image is required');
-    if(!/^image\/(jpeg|png|webp)$/i.test(file.type)) throw new Error('Clock Image must be JPEG, PNG or WebP');
-    if(file.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
+    if(!capturedClockImage) throw new Error('Clock Image is required. Please take a live photo.');
+    if(capturedClockImage.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
     btn.disabled=true;btn.classList.add('loading');
-    const payload={type:selectedType,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),image:{name:file.name,type:file.type,size:file.size,dataUrl:await fileDataUrl(file)}};
+    const payload={type:selectedType,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),captureSource:'camera',image:capturedClockImage};
     const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});
-    toast(`${selectedType} saved at ${j.time}`);
-    $('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Required before Save';
+    toast(selectedType+' saved at '+j.time);
+    clearClockPhoto();
     if(adjustment==='Yes')$('#clockRemarks').value='';
     await loadClockContext();
   }catch(e){toast(e.message,'error')}
   finally{btn.disabled=false;btn.classList.remove('loading')}
 }
-function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';$('#clockImage').value='';$('#uploadTitle').textContent='Upload Clock Image';$('#uploadHint').textContent='Required before Save';loadClockContext()}
+function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';clearClockPhoto();loadClockContext()}
 
 function setView(view){
+  if(view!=='clock')stopClockCamera();
   $('#clockView').classList.toggle('hidden',view!=='clock');
   $('#reportView').classList.toggle('hidden',view!=='report');
   $('#approvalView').classList.toggle('hidden',view!=='approval');
@@ -207,11 +305,15 @@ $('#clockDate').onchange=async()=>{if($('#clockDate').value>todayMY()){$('#clock
 
 $('#saveClockBtn').onclick=saveClock;
 $('#cancelClockBtn').onclick=resetClock;
-$('#clockImage').onchange=e=>{const f=e.target.files?.[0];if(f){$('#uploadTitle').textContent=f.name;$('#uploadHint').textContent=`${Math.max(1,Math.round(f.size/1024))} KB · ready to save`;}};
+$('#openCameraBtn').onclick=openClockCamera;
+$('#capturePhotoBtn').onclick=captureClockPhoto;
+$('#cancelCameraBtn').onclick=()=>{stopClockCamera();$('#cameraIdle').classList.remove('hidden')};
+$('#retakePhotoBtn').onclick=()=>{clearClockPhoto();openClockCamera()};
 $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
-window.addEventListener('resize',()=>{if(!isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden');applySavedSidebarState()}else{document.body.classList.remove('sidebar-collapsed')}});
+window.addEventListener('resize',()=>{if(!isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden');applySavedSidebarState()}else{document.body.classList.remove('sidebar-collapsed')}applyClockDevicePolicy()});
+window.addEventListener('pagehide',stopClockCamera);
 setType('In');
 init();
