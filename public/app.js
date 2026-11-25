@@ -17,15 +17,22 @@ function mapEmbedUrl(latitude,longitude){
 function googleMapsUrl(latitude,longitude){
   return 'https://www.google.com/maps?q='+Number(latitude).toFixed(6)+','+Number(longitude).toFixed(6);
 }
+function setLocationPermissionHelp(show){
+  const actionRow=$('#locationActionRow'),helpBtn=$('#locationPermissionHelpBtn'),help=$('#locationPermissionHelp');
+  if(actionRow)actionRow.classList.toggle('hidden',!show);
+  if(helpBtn)helpBtn.classList.toggle('hidden',!show);
+  if(!show&&help)help.classList.add('hidden');
+}
 function renderClockLocation(){
-  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),frame=$('#clockLocationMap'),retry=$('#retryLocationBtn');
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),frame=$('#clockLocationMap'),actionRow=$('#locationActionRow');
   if(!input||!meta||!frame)return;
   if(isDesktopClockBlocked()){
     input.value='Available when clocking on mobile';
     meta.textContent='Desktop view is read-only. Location is captured automatically on the employee phone.';
     frame.removeAttribute('src');
     frame.classList.add('hidden');
-    if(retry)retry.classList.add('hidden');
+    if(actionRow)actionRow.classList.add('hidden');
+    setLocationPermissionHelp(false);
     return;
   }
   if(!clockLocation){
@@ -37,7 +44,8 @@ function renderClockLocation(){
   meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Captured automatically';
   frame.src=mapEmbedUrl(clockLocation.latitude,clockLocation.longitude);
   frame.classList.remove('hidden');
-  if(retry)retry.classList.add('hidden');
+  if(actionRow)actionRow.classList.add('hidden');
+  setLocationPermissionHelp(false);
 }
 function locationErrorMessage(error){
   if(error&&error.code===1)return 'Location permission was denied. Please allow Location for this website in your phone settings.';
@@ -47,11 +55,13 @@ function locationErrorMessage(error){
 }
 async function captureClockLocation({silent=false,force=false}={}){
   if(isDesktopClockBlocked()){clockLocation=null;renderClockLocation();return null}
-  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),retry=$('#retryLocationBtn'),frame=$('#clockLocationMap');
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),actionRow=$('#locationActionRow'),helpBtn=$('#locationPermissionHelpBtn'),help=$('#locationPermissionHelp'),frame=$('#clockLocationMap');
   const requestId=++clockLocationRequestSeq;
   if(input)input.value='Getting current location...';
   if(meta)meta.textContent='Please allow Location permission. This is required for Clock.';
-  if(retry)retry.classList.add('hidden');
+  if(actionRow)actionRow.classList.add('hidden');
+  if(helpBtn)helpBtn.classList.add('hidden');
+  if(help)help.classList.add('hidden');
   if(frame){frame.removeAttribute('src');frame.classList.add('hidden')}
 
   if(!navigator.geolocation){
@@ -59,7 +69,8 @@ async function captureClockLocation({silent=false,force=false}={}){
     clockLocation=null;
     if(input)input.value='Location unavailable';
     if(meta)meta.textContent='Location is not available in this browser. Please use your phone.';
-    if(retry)retry.classList.remove('hidden');
+    if(actionRow)actionRow.classList.remove('hidden');
+    if(helpBtn)helpBtn.classList.add('hidden');
     if(!silent)toast('Location is not available in this browser. Please use your phone.','error');
     return null;
   }
@@ -94,7 +105,10 @@ async function captureClockLocation({silent=false,force=false}={}){
     if(input)input.value='Location unavailable';
     if(meta)meta.textContent=locationErrorMessage(e);
     if(frame){frame.removeAttribute('src');frame.classList.add('hidden')}
-    if(retry)retry.classList.remove('hidden');
+    if(actionRow)actionRow.classList.remove('hidden');
+    const denied=!!(e&&e.code===1);
+    if(helpBtn)helpBtn.classList.toggle('hidden',!denied);
+    if(!denied&&help)help.classList.add('hidden');
     if(!silent)toast(locationErrorMessage(e),'error');
     return null;
   }
@@ -483,6 +497,11 @@ $('#capturePhotoBtn').onclick=captureClockPhoto;
 $('#cancelCameraBtn').onclick=()=>{stopClockCamera();$('#cameraIdle').classList.remove('hidden')};
 $('#retakePhotoBtn').onclick=()=>{clearClockPhoto();openClockCamera()};
 $('#retryLocationBtn').onclick=()=>captureClockLocation({silent:false,force:true});
+$('#locationPermissionHelpBtn').onclick=()=>{
+  const help=$('#locationPermissionHelp');
+  const open=help.classList.toggle('hidden');
+  $('#locationPermissionHelpBtn').textContent=open?'How to Enable Location':'Hide Location Help';
+};
 $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;

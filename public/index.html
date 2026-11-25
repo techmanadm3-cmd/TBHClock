@@ -128,7 +128,32 @@
           <div id="clockLocationBox" class="location-box">
             <input id="clockLocation" class="control readonly location-input" type="text" value="Getting current location..." readonly>
             <div id="clockLocationMeta" class="location-meta">Location captured automatically from this device.</div>
-            <button type="button" id="retryLocationBtn" class="btn outline retry-location-btn hidden">Retry Location</button>
+            <div id="locationActionRow" class="location-action-row hidden">
+              <button type="button" id="retryLocationBtn" class="btn outline retry-location-btn">Retry Location</button>
+              <button type="button" id="locationPermissionHelpBtn" class="btn outline location-help-btn hidden">How to Enable Location</button>
+            </div>
+            <div id="locationPermissionHelp" class="location-permission-help hidden">
+              <div class="location-help-section">
+                <strong>iPhone / Safari</strong>
+                <ol>
+                  <li>Tap the Page Menu in Safari.</li>
+                  <li>Open Website Settings.</li>
+                  <li>Set Location to Allow.</li>
+                  <li>If still blocked: iPhone Settings → Privacy &amp; Security → Location Services → Safari Websites → While Using the App, and turn Precise Location ON.</li>
+                  <li>Return here and tap Retry Location.</li>
+                </ol>
+              </div>
+              <div class="location-help-section">
+                <strong>Android / Chrome</strong>
+                <ol>
+                  <li>Open this website in Chrome.</li>
+                  <li>Open Site settings for this website.</li>
+                  <li>Set Location permission to Allow.</li>
+                  <li>Make sure phone Location / GPS is turned on.</li>
+                  <li>Return here and tap Retry Location.</li>
+                </ol>
+              </div>
+            </div>
             <iframe id="clockLocationMap" class="location-map hidden" title="Current clock location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
           </div>
 

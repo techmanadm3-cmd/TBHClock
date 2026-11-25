@@ -68,4 +68,11 @@ assert(app.includes("captureClockLocation({silent:true,force:true})"), 'Open Cam
 assert(app.includes("maximumAge:force?0:15000"), 'Forced GPS refresh must bypass cached position');
 assert(app.includes('clockLocationRequestSeq'), 'Stale GPS request protection missing');
 assert(app.includes('locationErrorMessage(error)'), 'Readable GPS failure state missing');
+assert(html.includes('id="locationPermissionHelpBtn"'), 'How to Enable Location button missing');
+assert(html.includes('id="locationPermissionHelp"'), 'Location permission instructions missing');
+assert(html.includes('iPhone / Safari'), 'iPhone Safari location instructions missing');
+assert(html.includes('Android / Chrome'), 'Android Chrome location instructions missing');
+assert(app.includes("const denied=!!(e&&e.code===1)"), 'Permission help must appear only for denied GPS permission');
+assert(app.includes("'Hide Location Help'"), 'Location help toggle state missing');
+assert(app.includes('setLocationPermissionHelp(false)'), 'Successful GPS must hide permission help');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
