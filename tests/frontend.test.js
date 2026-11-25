@@ -24,7 +24,7 @@ assert(html.includes('No gallery or file upload'), 'Camera-only guidance missing
 assert(app.includes('navigator.mediaDevices.getUserMedia'), 'Live camera getUserMedia flow missing');
 assert(app.includes("captureSource:'camera'"), 'Camera-only payload marker missing');
 assert(app.includes('isDesktopClockDevice'), 'Desktop clock UI guard missing');
-assert(server.includes('isDesktopClockRequest'), 'Desktop clock server guard missing');
+assert(server.includes("String(user.permission||'').toUpperCase()==='STAFF'&&isDesktopClockRequest(req)"), 'Staff-only desktop clock server guard missing');
 assert(server.includes("body.captureSource!=='camera'"), 'Live camera server validation missing');
 assert(server.includes('DUPLICATE_CLOCK_TYPE'), 'Duplicate type server validation missing');
 assert(server.includes("const uniqueKey=[dateYmd,staff.Key,body.type].join('|')"), 'Date + Staff + Type key missing');
