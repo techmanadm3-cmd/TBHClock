@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { GoogleSheetsClient } = require('./src/googleSheets');
-const { rowsToObjects, buildDailyAttendance } = require('./src/attendance');
+const { rowsToObjects, buildDailyAttendance, findPreviousScheduledWorkDate } = require('./src/attendance');
 
 const PORT = Number(process.env.PORT || 8080);
 const APP_SECRET = process.env.APP_SECRET || 'dev-secret-change-me';
@@ -144,6 +144,38 @@ async function routeApi(req, res, url) {
     const types={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
     res.writeHead(200,{'content-type':types[ext]||'application/octet-stream','cache-control':'private, max-age=300'});
     return fs.createReadStream(file).pipe(res);
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/clock/context') {
+    const date = url.searchParams.get('date') || new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json(res,400,{error:'Invalid date'});
+    const [staffRows, clockRows, dateDimRows, scheduleRules, scheduleAssignments] = await Promise.all([
+      loadStaff(),loadClock(),loadDateDim(),loadScheduleRules(),loadStaffSchedule()
+    ]);
+    const staff = staffRows.find(s => String(s.Key) === String(user.staffCode));
+    if (!staff) return json(res,404,{error:'Staff record not found'});
+
+    const daily = buildDailyAttendance({dateYmd:date,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
+    const current = daily.items[0] || {};
+    const previousWorkDate = findPreviousScheduledWorkDate({
+      dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows
+    });
+    let previousOut = '';
+    if (previousWorkDate) {
+      const previous = buildDailyAttendance({dateYmd:previousWorkDate,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
+      previousOut = previous.items[0]?.clockOut || '';
+    }
+    return json(res,200,{
+      date,
+      staffCode:staff.Key,
+      staffName:staff['Staff Name'] || '',
+      department:staff.Department1 || '',
+      previousWorkDate,
+      missingOut:!!previousWorkDate && !previousOut,
+      missingIn:!current.clockIn,
+      currentIn:current.clockIn || '',
+      previousOut
+    });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/attendance/daily') {

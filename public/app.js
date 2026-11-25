@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockDayData=null,clockPrevDayData=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
@@ -16,35 +16,31 @@ async function login(){try{$('#loginMsg').textContent='';const j=await api('/api
 async function loadClockContext(){
   try{
     const date=$('#clockDate').value||todayMY();
-    const previousDate=shiftYmd(date,-1);
-    const [day,prev]=await Promise.all([
-      api(`/api/attendance/daily?date=${encodeURIComponent(date)}`),
-      api(`/api/attendance/daily?date=${encodeURIComponent(previousDate)}`)
-    ]);
-    clockDayData=day;
-    clockPrevDayData=prev;
-    const row=(day.items||[]).find(x=>x.staffCode===currentUser.staffCode);
-    $('#clockStaffName').value=currentUser.name||row?.name||'';
-    $('#clockDepartment').value=row?.department||'';
+    clockContext=await api(`/api/clock/context?date=${encodeURIComponent(date)}`);
+    $('#clockStaffName').value=clockContext.staffName||currentUser.name||'';
+    $('#clockDepartment').value=clockContext.department||'';
     updateClockStatus();
   }catch(e){toast(e.message,'error')}
 }
-function currentClockRow(source){return (source?.items||[]).find(x=>x.staffCode===currentUser.staffCode)}
 function updateClockStatus(){
-  const field=$('#clockCheckStatus'),label=$('#clockCheckLabel');
-  const todayRow=currentClockRow(clockDayData);
-  const prevRow=currentClockRow(clockPrevDayData);
+  const field=$('#clockCheckStatus'),label=$('#clockCheckLabel'),wrap=$('#clockCheckWrap'),note=$('#clockCheckNote');
   if(selectedType==='In'){
-    label.classList.remove('hidden');field.classList.remove('hidden');
-    label.textContent='Previous Day Out';
-    field.value=prevRow?.clockOut ? `Out: ${prevRow.clockOut}` : 'Missing Out';
+    label.classList.remove('hidden');wrap.classList.remove('hidden');
+    label.textContent='Missing Out';
+    const missing=!!clockContext?.missingOut;
+    field.value=missing?'Yes':'No';
+    note.textContent=missing?'Please make adjustment for yesterday Out.':'';
+    note.classList.toggle('hidden',!missing);
   }else if(selectedType==='Out'){
-    label.classList.remove('hidden');field.classList.remove('hidden');
-    label.textContent='Check In';
-    field.value=todayRow?.clockIn ? `In: ${todayRow.clockIn}` : 'Missing In';
+    label.classList.remove('hidden');wrap.classList.remove('hidden');
+    label.textContent='Missing In';
+    const missing=!!clockContext?.missingIn;
+    field.value=missing?'Yes':'No';
+    note.textContent=missing?'Please make adjustment for today In.':'';
+    note.classList.toggle('hidden',!missing);
   }else{
-    label.classList.add('hidden');field.classList.add('hidden');
-    field.value='';
+    label.classList.add('hidden');wrap.classList.add('hidden');
+    field.value='';note.textContent='';note.classList.add('hidden');
   }
 }
 function setType(type){selectedType=type;$$('#typeGrid button').forEach(b=>b.classList.toggle('selected',b.dataset.type===type));updateClockStatus()}

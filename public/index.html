@@ -80,10 +80,10 @@
           <input id="clockTime" class="control" type="time" step="60">
 
           <label>Staff Name <b>*</b></label>
-          <input id="clockStaffName" class="control readonly" type="text" readonly>
+          <input id="clockStaffName" class="control readonly" type="text" disabled>
 
-          <label>Department</label>
-          <input id="clockDepartment" class="control readonly" type="text" readonly>
+          <label>Department <b>*</b></label>
+          <input id="clockDepartment" class="control readonly" type="text" disabled>
 
           <label>Type <b>*</b></label>
           <div id="typeGrid" class="type-grid">
@@ -116,8 +116,11 @@
           <label>Remarks <b id="remarksRequiredMark" class="hidden">*</b></label>
           <textarea id="clockRemarks" class="control" rows="3"></textarea>
 
-          <label id="clockCheckLabel">Previous Day Out</label>
-          <input id="clockCheckStatus" class="control readonly" value="Checking..." readonly>
+          <label id="clockCheckLabel">Missing Out</label>
+          <div id="clockCheckWrap">
+            <input id="clockCheckStatus" class="control readonly missing-flag" value="Checking..." readonly>
+            <div id="clockCheckNote" class="field-hint warning-hint hidden"></div>
+          </div>
         </div>
         <div class="form-actions">
           <button id="cancelClockBtn" class="btn outline">Cancel</button>

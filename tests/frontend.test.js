@@ -11,7 +11,8 @@ assert(lines.some(x=>x.includes("$$('[data-report-panel]').forEach")), 'data-rep
 
 assert(app.includes("$('#adjustment button').forEach"), 'Adjustment buttons must use NodeList helper');
 assert(!app.includes("$('#clockStaff').value"), 'Clock form must not submit a selectable staff value');
-assert(app.includes("Previous Day Out"), 'Type In previous-day Out check missing');
-assert(app.includes("'Missing Out'"), 'Type In Missing Out status missing');
-assert(app.includes("'Missing In'"), 'Type Out Missing In status missing');
+assert(app.includes("label.textContent='Missing Out'"), 'Type In Missing Out label missing');
+assert(app.includes("field.value=missing?'Yes':'No'"), 'Missing flag Yes/No rendering missing');
+assert(app.includes("Please make adjustment for yesterday Out."), 'Missing Out adjustment note missing');
+assert(app.includes("Please make adjustment for today In."), 'Missing In adjustment note missing');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');

@@ -44,7 +44,7 @@ function matchesDayRule(rule, date) {
   return true;
 }
 
-function resolveSchedule(staff, dateYmd, assignments, rules, clockRows) {
+function resolveAssignedSchedule(staff, dateYmd, assignments, rules) {
   const date = new Date(`${dateYmd}T12:00:00+08:00`);
   const applicable = assignments
     .filter(a => String(a['Staff Code']).trim() === String(staff.Key).trim())
@@ -59,10 +59,32 @@ function resolveSchedule(staff, dateYmd, assignments, rules, clockRows) {
       String(r.Active).toUpperCase() !== 'FALSE' && matchesDayRule(r['Day Rule'], date));
     if (rule) return { source: 'HR_StaffSchedule', assignment: a, rule };
   }
+  return null;
+}
 
+function resolveSchedule(staff, dateYmd, assignments, rules, clockRows) {
+  const assigned = resolveAssignedSchedule(staff, dateYmd, assignments, rules);
+  if (assigned) return assigned;
   const inRow = clockRows.find(r => r.Type === 'In' && r['Late Time']);
   if (inRow) return { source: 'Clock Late Time', assignment: null, rule: { 'Start Time': inRow['Late Time'], 'End Time': '', 'Schedule Name': 'Legacy Clock Rule' } };
   return null;
+}
+
+function shiftYmd(ymd, days) {
+  const d = new Date(`${ymd}T12:00:00+08:00`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, dateDimRows, maxDays=21}) {
+  for (let i=1; i<=maxDays; i++) {
+    const candidate = shiftYmd(dateYmd, -i);
+    const candidateDmy = ymdToDmy(candidate);
+    const dim = dateDimRows.find(r => String(r.Date) === candidateDmy);
+    if (dim && String(dim.Day || '').toUpperCase() !== 'WD') continue;
+    if (resolveAssignedSchedule(staff, candidate, assignments, rules)) return candidate;
+  }
+  return '';
 }
 
 function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignments, scheduleRules, dateDimRows}) {
@@ -121,4 +143,4 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
   return { date: dateYmd, dayType: dateDim?.Day || '', holiday: dateDim?.PH || '', kpi, items };
 }
 
-module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy };
+module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate };
