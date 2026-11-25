@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null;
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
@@ -8,6 +8,78 @@ function isDesktopClockDevice(){
   const mobileUa=/(Android|iPhone|iPad|iPod|Mobile)/i.test(ua);
   const desktopUa=/(Windows NT|Macintosh|X11|CrOS)/i.test(ua);
   return desktopUa&&!mobileUa;
+}
+function mapEmbedUrl(latitude,longitude){
+  const lat=Number(latitude),lng=Number(longitude),pad=0.003;
+  const bbox=[lng-pad,lat-pad,lng+pad,lat+pad].map(x=>x.toFixed(6)).join('%2C');
+  return 'https://www.openstreetmap.org/export/embed.html?bbox='+bbox+'&layer=mapnik&marker='+lat.toFixed(6)+'%2C'+lng.toFixed(6);
+}
+function googleMapsUrl(latitude,longitude){
+  return 'https://www.google.com/maps?q='+Number(latitude).toFixed(6)+','+Number(longitude).toFixed(6);
+}
+function renderClockLocation(){
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta'),frame=$('#clockLocationMap');
+  if(!input||!meta||!frame)return;
+  if(isDesktopClockBlocked()){
+    input.value='Available when clocking on mobile';
+    meta.textContent='Desktop view is read-only. Location is captured automatically on the employee phone.';
+    frame.removeAttribute('src');
+    frame.classList.add('hidden');
+    return;
+  }
+  if(!clockLocation){
+    input.value='Getting current location...';
+    meta.textContent='Location captured automatically from this device.';
+    frame.removeAttribute('src');
+    frame.classList.add('hidden');
+    return;
+  }
+  input.value=clockLocation.latitude.toFixed(6)+', '+clockLocation.longitude.toFixed(6);
+  meta.textContent='GPS accuracy ±'+Math.round(clockLocation.accuracy)+' m · Captured automatically';
+  frame.src=mapEmbedUrl(clockLocation.latitude,clockLocation.longitude);
+  frame.classList.remove('hidden');
+}
+async function captureClockLocation({silent=false}={}){
+  if(isDesktopClockBlocked()){clockLocation=null;renderClockLocation();return null}
+  if(!navigator.geolocation){
+    clockLocation=null;renderClockLocation();
+    if(!silent)toast('Location is not available in this browser. Please use your phone.','error');
+    return null;
+  }
+  const input=$('#clockLocation'),meta=$('#clockLocationMeta');
+  if(input)input.value='Getting current location...';
+  if(meta)meta.textContent='Please allow Location permission. This is required for Clock.';
+  try{
+    const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{
+      enableHighAccuracy:true,
+      timeout:15000,
+      maximumAge:0
+    }));
+    clockLocation={
+      latitude:Number(position.coords.latitude),
+      longitude:Number(position.coords.longitude),
+      accuracy:Number(position.coords.accuracy||0),
+      capturedAt:new Date(position.timestamp||Date.now()).toISOString()
+    };
+    renderClockLocation();
+    return clockLocation;
+  }catch(e){
+    clockLocation=null;
+    if(input)input.value='Location unavailable';
+    if(meta)meta.textContent='Location permission is required to clock in/out.';
+    const frame=$('#clockLocationMap');
+    if(frame){frame.removeAttribute('src');frame.classList.add('hidden')}
+    if(!silent)toast('Location access is required to clock in/out. Please enable Location permission.','error');
+    return null;
+  }
+}
+async function ensureFreshClockLocation(){
+  const capturedMs=clockLocation?Date.parse(clockLocation.capturedAt):0;
+  if(!clockLocation || !Number.isFinite(capturedMs) || Date.now()-capturedMs>2*60*1000){
+    await captureClockLocation({silent:false});
+  }
+  if(!clockLocation)throw new Error('Location access is required to clock in/out. Please enable Location permission.');
+  return clockLocation;
 }
 function dataUrlBytes(dataUrl){
   const base64=String(dataUrl||'').split(',')[1]||'';
@@ -48,6 +120,7 @@ function applyClockDevicePolicy(){
   if(desktopBlocked){
     stopClockCamera();
     capturedClockImage=null;
+    clockLocation=null;
     $('#cameraLive').classList.add('hidden');
     $('#cameraPreviewWrap').classList.add('hidden');
     $('#cameraIdle').classList.remove('hidden');
@@ -57,6 +130,7 @@ function applyClockDevicePolicy(){
     $('#uploadTitle').textContent='Take Clock Photo';
     $('#uploadHint').textContent='Live camera only · required before Save';
   }
+  renderClockLocation();
   return !desktopBlocked;
 }
 async function openClockCamera(){
@@ -105,7 +179,7 @@ function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.classNa
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock')}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock');if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){
@@ -203,17 +277,21 @@ async function saveClock(){
     if(sequenceError) throw new Error(sequenceError);
     if(!capturedClockImage) throw new Error('Clock Image is required. Please take a live photo.');
     if(capturedClockImage.size>8*1024*1024) throw new Error('Clock Image must be 8 MB or smaller');
+    await ensureFreshClockLocation();
     btn.disabled=true;btn.classList.add('loading');
-    const payload={type:selectedType,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),captureSource:'camera',image:capturedClockImage};
+    const payload={type:selectedType,date:$('#clockDate').value,time:$('#clockTime').value,adjustment,remarks:$('#clockRemarks').value.trim(),captureSource:'camera',image:capturedClockImage,location:clockLocation};
     const j=await api('/api/clock',{method:'POST',body:JSON.stringify(payload)});
     toast(selectedType+' saved at '+j.time);
     clearClockPhoto();
+    clockLocation=null;
+    renderClockLocation();
     if(adjustment==='Yes')$('#clockRemarks').value='';
     await loadClockContext();
+    captureClockLocation({silent:true});
   }catch(e){toast(e.message,'error')}
   finally{btn.classList.remove('loading');applyClockDevicePolicy()}
 }
-function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';clearClockPhoto();loadClockContext()}
+function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';clearClockPhoto();clockLocation=null;renderClockLocation();loadClockContext();if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
 
 function setView(view){
   if(view!=='clock')stopClockCamera();
@@ -225,6 +303,7 @@ function setView(view){
   $('#headerTitle').textContent=titles[view]||'TBH HR';
   $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
   closeMenu();
+  if(view==='clock'&&!isDesktopClockBlocked()&&!clockLocation)captureClockLocation({silent:true});
   if(view==='report')loadReport();
   if(view==='approval')loadApprovals()
 }
@@ -290,20 +369,26 @@ function renderReport(){
     const rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
     $('#reportPanelTitle').textContent='Clock Master';
     $('#resultMeta').textContent=`${rows.length} clock records${meta?' · '+meta:''}`;
-    $('#reportHead').innerHTML='<tr><th>Date</th><th>Time</th><th>Staff Name</th><th>Type</th><th>Department</th><th>Late Result</th><th>Day Type</th></tr>';
+    $('#reportHead').innerHTML='<tr><th>Date</th><th>Time</th><th>Staff Name</th><th>Type</th><th>Department</th><th>Location</th><th>Late Result</th><th>Day Type</th></tr>';
     const departments=[...new Set(rows.map(x=>x.department||'Unassigned'))];
     let body='';
     for(const dept of departments){
       const deptRows=rows.filter(x=>(x.department||'Unassigned')===dept);
-      body+=`<tr class="department-group-row"><td colspan="7"><strong>${esc(dept)}</strong><span>${deptRows.length}</span></td></tr>`;
+      body+=`<tr class="department-group-row"><td colspan="8"><strong>${esc(dept)}</strong><span>${deptRows.length}</span></td></tr>`;
       const staffNames=[...new Set(deptRows.map(x=>x.name||x.staffCode||'Unknown'))];
       for(const staffName of staffNames){
         const staffRows=deptRows.filter(x=>(x.name||x.staffCode||'Unknown')===staffName);
-        body+=`<tr class="staff-group-row"><td colspan="7"><strong>${esc(staffName)}</strong><span>${staffRows.length}</span></td></tr>`;
-        body+=staffRows.map(x=>`<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
+        body+=`<tr class="staff-group-row"><td colspan="8"><strong>${esc(staffName)}</strong><span>${staffRows.length}</span></td></tr>`;
+        body+=staffRows.map(x=>{
+          const loc=x.location;
+          const locationCell=loc
+            ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
+            : '—';
+          return `<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
+        }).join('');
       }
     }
-    $('#reportRows').innerHTML=body||'<tr><td colspan="7" class="empty-cell">No clock records</td></tr>';
+    $('#reportRows').innerHTML=body||'<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
     return;
   }
 
@@ -315,6 +400,21 @@ function renderReport(){
   if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
 }
 
+function openClockMap(button){
+  const lat=Number(button.dataset.lat),lng=Number(button.dataset.lng),accuracy=Number(button.dataset.accuracy||0);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+  $('#mapModalTitle').textContent=button.dataset.name||'Clock Location';
+  $('#mapModalSubtitle').textContent=[button.dataset.date,button.dataset.time,button.dataset.type].filter(Boolean).join(' · ');
+  $('#mapModalCoordinates').textContent=lat.toFixed(6)+', '+lng.toFixed(6);
+  $('#mapModalAccuracy').textContent='GPS accuracy ±'+Math.round(accuracy)+' m';
+  $('#managerMapFrame').src=mapEmbedUrl(lat,lng);
+  $('#openGoogleMapsLink').href=googleMapsUrl(lat,lng);
+  $('#mapModal').classList.remove('hidden');
+}
+function closeClockMap(){
+  $('#mapModal').classList.add('hidden');
+  $('#managerMapFrame').removeAttribute('src');
+}
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}
 function setApprovalTab(tab){approvalTab=tab;$$('[data-approval-tab]').forEach(b=>b.classList.toggle('active',b.dataset.approvalTab===tab));renderApprovals()}
 function renderApprovals(){
@@ -354,6 +454,10 @@ $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
+$('#reportRows').addEventListener('click',e=>{const button=e.target.closest('[data-clock-map]');if(button)openClockMap(button)});
+$('#closeMapModalBtn').onclick=closeClockMap;
+$('#mapModal').addEventListener('click',e=>{if(e.target===$('#mapModal'))closeClockMap()});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#mapModal').classList.contains('hidden'))closeClockMap()});
 window.addEventListener('resize',()=>{if(!isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden');applySavedSidebarState()}else{document.body.classList.remove('sidebar-collapsed')}applyClockDevicePolicy()});
 window.addEventListener('pagehide',stopClockCamera);
 setType('In');

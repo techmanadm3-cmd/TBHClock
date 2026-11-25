@@ -261,3 +261,33 @@ body{background:#f3f6fb}
 .desktop-camera-disabled .camera-action-btn{display:none}
 .desktop-camera-disabled small{color:#9aa5b2}
 .save-btn.desktop-disabled,.save-btn:disabled{cursor:not-allowed;opacity:.48;box-shadow:none}
+
+/* Clock GPS location */
+.location-box{display:flex;flex-direction:column;gap:8px}
+.location-input{font-weight:750;color:#173a66;background:#eef2f6}
+.location-meta{font-size:11px;color:#6d7f94}
+.location-map{width:100%;height:240px;border:1px solid #d7e1ec;border-radius:12px;background:#eef3f7}
+.map-link-btn{border:0;background:#e9f3ff;color:#0a5cab;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.map-link-btn:hover{background:#d9ecff}
+.map-accuracy{display:block;color:#7d8da1;font-size:10px;margin-top:4px}
+.map-modal{position:fixed;inset:0;z-index:1200;background:#07182a9c;display:grid;place-items:center;padding:20px}
+.map-modal.hidden{display:none}
+.map-modal-card{position:relative;width:min(880px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 70px #06182b55;padding:22px}
+.map-modal-close{position:absolute;right:14px;top:12px;width:38px;height:38px;border:0;border-radius:50%;background:#edf2f7;color:#244463;font-size:26px;line-height:1;cursor:pointer}
+.map-modal-head{display:flex;align-items:center;gap:12px;padding-right:48px;margin-bottom:14px}
+.map-pin-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#e5f1ff;color:#0b63b9}
+.map-modal-head h2{margin:0;color:#10284a;font-size:21px}
+.map-modal-head p{margin:4px 0 0;color:#74849a;font-size:12px}
+.manager-map-frame{display:block;width:100%;height:min(56vh,520px);border:1px solid #d8e2ed;border-radius:14px;background:#eef3f7}
+.map-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:14px}
+.map-modal-footer strong{display:block;color:#16375f;font-size:13px}
+.map-modal-footer span{display:block;color:#72849a;font-size:11px;margin-top:3px}
+.map-external-link{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:760px){
+  .location-map{height:220px}
+  .map-modal{padding:10px}
+  .map-modal-card{width:100%;padding:16px;border-radius:15px}
+  .manager-map-frame{height:52vh}
+  .map-modal-footer{align-items:stretch;flex-direction:column}
+  .map-external-link{width:100%}
+}

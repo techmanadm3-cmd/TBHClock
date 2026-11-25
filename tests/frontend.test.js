@@ -47,4 +47,19 @@ assert(server.includes('DUPLICATE_CLOCK_TYPE'), 'Duplicate type server validatio
 assert(server.includes("const uniqueKey=[dateYmd,staff.Key,body.type].join('|')"), 'Date + Staff + Type key missing');
 assert(server.includes("rowsToObjects(await sheets.get('Clock!A:T'))"), 'Duplicate validation must read fresh Clock data');
 assert(server.includes('withClockSaveLock(uniqueKey'), 'Duplicate validation must be save-lock protected');
+
+assert(html.includes('<label>Location <b>*</b></label>'), 'Required Location field must appear below Clock Image');
+assert(html.includes('id="clockLocationMap"'), 'Employee location map missing');
+assert(html.includes('id="mapModal"'), 'Manager map modal missing');
+assert(app.includes('navigator.geolocation.getCurrentPosition'), 'Automatic browser GPS capture missing');
+assert(app.includes('enableHighAccuracy:true'), 'High accuracy GPS mode missing');
+assert(app.includes('async function ensureFreshClockLocation()'), 'Fresh GPS requirement missing');
+assert(app.includes('location:clockLocation'), 'Clock save must send captured GPS');
+assert(server.includes('function serializeClockLocation'), 'Canonical Clock Location serializer missing');
+assert(server.includes("code:'LOCATION_REQUIRED'"), 'Server Location-required guard missing');
+assert(server.includes("location:parseClockLocation(r.Location||'')"), 'Clock Master must parse saved GPS');
+assert(server.includes('locationValue'), 'Clock sheet must save canonical GPS value');
+assert(app.includes('data-clock-map'), 'Clock Master View Map action missing');
+assert(app.includes('https://www.openstreetmap.org/export/embed.html'), 'Embedded employee/manager map provider missing');
+assert(app.includes('https://www.google.com/maps?q='), 'Open in Google Maps link missing');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');

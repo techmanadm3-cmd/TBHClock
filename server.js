@@ -139,6 +139,31 @@ function validateClockSequence({type,dateYmd,staffKey,clockRows}) {
 
   return '';
 }
+function normalizeClockLocation(location, nowMs=Date.now()) {
+  if(!location || typeof location!=='object') throw new Error('Location is required. Please enable Location permission.');
+  const latitude=Number(location.latitude);
+  const longitude=Number(location.longitude);
+  const accuracy=Number(location.accuracy);
+  const capturedAt=String(location.capturedAt||'').trim();
+  const capturedMs=Date.parse(capturedAt);
+  if(!Number.isFinite(latitude)||latitude < -90||latitude > 90) throw new Error('Invalid latitude received from device.');
+  if(!Number.isFinite(longitude)||longitude < -180||longitude > 180) throw new Error('Invalid longitude received from device.');
+  if(!Number.isFinite(accuracy)||accuracy < 0||accuracy > 10000) throw new Error('Invalid GPS accuracy received from device.');
+  if(!Number.isFinite(capturedMs)) throw new Error('Invalid Location capture time.');
+  if(capturedMs > nowMs + 2*60*1000 || nowMs - capturedMs > 10*60*1000) throw new Error('Location is outdated. Please allow the app to capture your current location again.');
+  return {latitude,longitude,accuracy,capturedAt:new Date(capturedMs).toISOString()};
+}
+function serializeClockLocation(location, nowMs=Date.now()) {
+  const p=normalizeClockLocation(location,nowMs);
+  return ['GPS',p.latitude.toFixed(6),p.longitude.toFixed(6),Math.round(p.accuracy),p.capturedAt].join('|');
+}
+function parseClockLocation(value) {
+  const m=String(value||'').trim().match(/^GPS\|(-?\d+(?:\.\d+)?)\|(-?\d+(?:\.\d+)?)\|(\d+(?:\.\d+)?)\|(.+)$/);
+  if(!m) return null;
+  const latitude=Number(m[1]),longitude=Number(m[2]),accuracy=Number(m[3]),capturedAt=String(m[4]||'');
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy)) return null;
+  return {latitude,longitude,accuracy,capturedAt};
+}
 function clockMinutes(value) {
   if(!value) return null;
   const m=String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -301,6 +326,8 @@ async function routeApi(req, res, url) {
           name:r.Name||st['Staff Name']||staffCode,
           type:r.Type||'',
           department:r.Department||st.Department1||'',
+          location:parseClockLocation(r.Location||''),
+          locationRaw:r.Location||'',
           lateResult:(()=>{
             if(r.Type==='In'){
               const mins=clockMinutes(r.Time);
@@ -441,6 +468,10 @@ async function routeApi(req, res, url) {
       return json(res,400,{error:'Past date is Adjustment only'});
     }
 
+    let locationValue='';
+    try{locationValue=serializeClockLocation(body.location,now.getTime())}
+    catch(e){return json(res,400,{error:e.message,code:'LOCATION_REQUIRED'})}
+
     const date=`${dateYmd.slice(8,10)}/${dateYmd.slice(5,7)}/${dateYmd.slice(0,4)}`;
     const uniqueKey=[dateYmd,staff.Key,body.type].join('|');
 
@@ -473,7 +504,7 @@ async function routeApi(req, res, url) {
 
       const today=`${p.day}/${p.month}/${p.year}`;
       const stamp=`${today} ${nowTime}`;
-      const row=[uniqueKey,date,time,staff.Key,body.type,body.location||'',remarks,adjustment,approval,'',imagePath,stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
+      const row=[uniqueKey,date,time,staff.Key,body.type,locationValue,remarks,adjustment,approval,'',imagePath,stamp,staff.Department1||'',staff['Job Title']||staff.Department||'','','',staff['Staff Name']||'','',''];
       try{await sheets.append('Clock!A:T',row)}
       catch(e){try{fs.unlinkSync(path.join(UPLOAD_ROOT,imagePath))}catch{};throw e}
       cache.delete('clock');

@@ -124,6 +124,13 @@
             <canvas id="clockPhotoCanvas" class="hidden"></canvas>
           </div>
 
+          <label>Location <b>*</b></label>
+          <div id="clockLocationBox" class="location-box">
+            <input id="clockLocation" class="control readonly location-input" type="text" value="Getting current location..." readonly>
+            <div id="clockLocationMeta" class="location-meta">Location captured automatically from this device.</div>
+            <iframe id="clockLocationMap" class="location-map hidden" title="Current clock location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          </div>
+
           <label>Adjustment <b>*</b></label>
           <div class="segmented" id="adjustment">
             <button type="button" data-value="Yes">Yes</button>
@@ -211,6 +218,27 @@
     </section>
   </main>
   <div id="scrim" class="scrim hidden"></div>
+</div>
+
+<div id="mapModal" class="map-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
+  <div class="map-modal-card">
+    <button id="closeMapModalBtn" class="map-modal-close" type="button" aria-label="Close map">×</button>
+    <div class="map-modal-head">
+      <span class="map-pin-icon">●</span>
+      <div>
+        <h2 id="mapModalTitle">Clock Location</h2>
+        <p id="mapModalSubtitle"></p>
+      </div>
+    </div>
+    <iframe id="managerMapFrame" class="manager-map-frame" title="Employee clock location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div class="map-modal-footer">
+      <div>
+        <strong id="mapModalCoordinates"></strong>
+        <span id="mapModalAccuracy"></span>
+      </div>
+      <a id="openGoogleMapsLink" class="btn outline map-external-link" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+    </div>
+  </div>
 </div>
 
 <script src="/app.js"></script>
