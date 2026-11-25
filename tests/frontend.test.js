@@ -24,12 +24,13 @@ assert(html.includes('No gallery or file upload'), 'Camera-only guidance missing
 assert(app.includes('navigator.mediaDevices.getUserMedia'), 'Live camera getUserMedia flow missing');
 assert(app.includes("captureSource:'camera'"), 'Camera-only payload marker missing');
 assert(app.includes('isDesktopClockDevice'), 'Desktop clock UI guard missing');
+assert(app.includes('function isDesktopClockBlocked(){'), 'Desktop block must apply to every role');
 assert(app.includes("$('#clockFormBody').classList.remove('hidden')"), 'Desktop Clock form must remain visible');
 assert(app.includes("$('#clockCameraBox').classList.toggle('desktop-camera-disabled',desktopBlocked)"), 'Desktop image area must be read-only');
 assert(app.includes("$('#openCameraBtn').disabled=desktopBlocked"), 'Desktop camera button must be disabled');
 assert(app.includes("$('#saveClockBtn').disabled=desktopBlocked"), 'Desktop Save must be disabled');
 assert(html.includes('Desktop view is read-only for Clock Image.'), 'Desktop read-only guidance missing');
-assert(server.includes("String(user.permission||'').toUpperCase()==='STAFF'&&isDesktopClockRequest(req)"), 'Staff-only desktop clock server guard missing');
+assert(server.includes("if(isDesktopClockRequest(req)) return json(res,403"), 'Desktop clock server guard missing');
 assert(server.includes("body.captureSource!=='camera'"), 'Live camera server validation missing');
 assert(server.includes('DUPLICATE_CLOCK_TYPE'), 'Duplicate type server validation missing');
 assert(server.includes("const uniqueKey=[dateYmd,staff.Key,body.type].join('|')"), 'Date + Staff + Type key missing');

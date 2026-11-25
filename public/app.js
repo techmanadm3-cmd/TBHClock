@@ -33,11 +33,11 @@ function clearClockPhoto(){
   if($('#uploadTitle'))$('#uploadTitle').textContent='Take Clock Photo';
   if($('#uploadHint'))$('#uploadHint').textContent='Live camera only · required before Save';
 }
-function isStaffDesktopClockBlocked(){
-  return String(currentUser?.permission||'').toUpperCase()==='STAFF'&&isDesktopClockDevice();
+function isDesktopClockBlocked(){
+  return isDesktopClockDevice();
 }
 function applyClockDevicePolicy(){
-  const desktopBlocked=isStaffDesktopClockBlocked();
+  const desktopBlocked=isDesktopClockBlocked();
   $('#desktopClockBlock').classList.toggle('hidden',!desktopBlocked);
   $('#clockFormBody').classList.remove('hidden');
   $('#clockCameraBox').classList.toggle('desktop-camera-disabled',desktopBlocked);
@@ -61,7 +61,7 @@ function applyClockDevicePolicy(){
   return !desktopBlocked;
 }
 async function openClockCamera(){
-  if(isStaffDesktopClockBlocked()){toast('Staff Clock In/Out is only available on mobile. Please use your phone.','error');return}
+  if(isDesktopClockBlocked()){toast('Clock In/Out is only available on mobile. Please use your phone.','error');return}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Live camera is not available in this browser. Please use your phone camera.','error');return}
   try{
     stopClockCamera();
@@ -174,7 +174,7 @@ function applyClockMode(){
 async function saveClock(){
   const btn=$('#saveClockBtn');
   try{
-    if(isStaffDesktopClockBlocked()) throw new Error('Staff Clock In/Out is only available on mobile. Please use your phone.');
+    if(isDesktopClockBlocked()) throw new Error('Clock In/Out is only available on mobile. Please use your phone.');
     const today=todayMY();
     if(adjustment==='No'){$('#clockDate').value=today;$('#clockTime').value=timeMY()}
     if($('#clockDate').value>today) throw new Error('Future date is not allowed');

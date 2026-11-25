@@ -353,7 +353,7 @@ async function routeApi(req, res, url) {
     const body=await readJson(req);
     const allowed=new Set(['In','Out','Lunch Out','Lunch In','Extra Out','Extra In','Outstation Out','Outstation In','Overnight Out']);
     if(!allowed.has(body.type)) return json(res,400,{error:'Invalid clock type'});
-    if(String(user.permission||'').toUpperCase()==='STAFF'&&isDesktopClockRequest(req)) return json(res,403,{error:'Staff Clock In/Out is only available on a mobile device. Please use your phone.'});
+    if(isDesktopClockRequest(req)) return json(res,403,{error:'Clock In/Out is only available on a mobile device. Please use your phone.'});
     if(body.captureSource!=='camera') return json(res,400,{error:'Clock Image must be taken with the live camera.'});
 
     const staffRows=await loadStaff();
