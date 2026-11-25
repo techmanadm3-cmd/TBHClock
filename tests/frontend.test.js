@@ -26,10 +26,12 @@ assert(app.includes("captureSource:'camera'"), 'Camera-only payload marker missi
 assert(app.includes('isDesktopClockDevice'), 'Desktop clock UI guard missing');
 assert(app.includes('function isDesktopClockBlocked(){'), 'Desktop block must apply to every role');
 assert(app.includes("$('#clockFormBody').classList.remove('hidden')"), 'Desktop Clock form must remain visible');
+assert(!html.includes('id="desktopClockBlock"'), 'Desktop mobile-only banner must be removed');
+assert(!html.includes('Mobile clock only'), 'Desktop mobile-only banner text must be removed');
+assert(!app.includes("$('#desktopClockBlock')"), 'Desktop banner toggle must be removed');
 assert(app.includes("$('#clockCameraBox').classList.toggle('desktop-camera-disabled',desktopBlocked)"), 'Desktop image area must be read-only');
 assert(app.includes("$('#openCameraBtn').disabled=desktopBlocked"), 'Desktop camera button must be disabled');
 assert(app.includes("$('#saveClockBtn').disabled=desktopBlocked"), 'Desktop Save must be disabled');
-assert(html.includes('Desktop view is read-only for Clock Image.'), 'Desktop read-only guidance missing');
 assert(server.includes("if(isDesktopClockRequest(req)) return json(res,403"), 'Desktop clock server guard missing');
 assert(server.includes("body.captureSource!=='camera'"), 'Live camera server validation missing');
 assert(server.includes('DUPLICATE_CLOCK_TYPE'), 'Duplicate type server validation missing');

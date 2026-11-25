@@ -38,7 +38,6 @@ function isDesktopClockBlocked(){
 }
 function applyClockDevicePolicy(){
   const desktopBlocked=isDesktopClockBlocked();
-  $('#desktopClockBlock').classList.toggle('hidden',!desktopBlocked);
   $('#clockFormBody').classList.remove('hidden');
   $('#clockCameraBox').classList.toggle('desktop-camera-disabled',desktopBlocked);
   $('#openCameraBtn').disabled=desktopBlocked;
