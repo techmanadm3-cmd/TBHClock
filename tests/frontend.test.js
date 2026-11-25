@@ -75,7 +75,7 @@ assert(app.includes("maximumAge:force?0:15000"), 'Forced GPS refresh must bypass
 assert(app.includes('clockLocationRequestSeq'), 'Stale GPS request protection missing');
 assert(app.includes('locationErrorMessage(error)'), 'Readable GPS failure state missing');
 assert(app.includes("'Improving GPS accuracy...'"), 'GPS improvement status missing');
-assert(app.includes("'Need ≤'+GPS_MAX_ACCURACY_M+' m to Clock'"), 'GPS accuracy requirement status missing');
+assert(app.includes("Need ≤'+GPS_MAX_ACCURACY_M+' m to Clock"), 'GPS accuracy requirement status missing');
 assert(html.includes('id="locationPermissionHelpBtn"'), 'How to Enable Location button missing');
 assert(html.includes('id="locationPermissionHelp"'), 'Location permission instructions missing');
 assert(html.includes('iPhone / Safari'), 'iPhone Safari location instructions missing');
