@@ -87,28 +87,58 @@ function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, date
   return '';
 }
 
+function isAutoNightShift(dateYmd, inTime) {
+  const inMin = parseTime(inTime);
+  if (inMin == null || inMin <= 18 * 60) return false;
+  const day = new Date(`${dateYmd}T12:00:00+08:00`).getDay();
+  return day >= 1 && day <= 5;
+}
+
 function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignments, scheduleRules, dateDimRows}) {
   const dateDmy = ymdToDmy(dateYmd);
+  const nextDateYmd = shiftYmd(dateYmd, 1);
+  const nextDateDmy = ymdToDmy(nextDateYmd);
   const activeStaff = staffRows.filter(s => String(s.Status).toLowerCase() === 'active');
   const dayClock = clockRows.filter(r => r.Date === dateDmy);
+  const nextDayClock = clockRows.filter(r => r.Date === nextDateDmy);
   const dateDim = dateDimRows.find(r => r.Date === dateDmy) || null;
 
   const items = activeStaff.map(staff => {
-    const events = dayClock.filter(r => String(r['Staff Name']).trim() === String(staff.Key).trim());
+    const staffKey = String(staff.Key).trim();
+    const events = dayClock.filter(r => String(r['Staff Name']).trim() === staffKey);
+    const nextEvents = nextDayClock.filter(r => String(r['Staff Name']).trim() === staffKey);
     const firstIn = events.filter(r => r.Type === 'In').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
-    const lastOut = events.filter(r => r.Type === 'Out').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
+    const normalOut = events.filter(r => r.Type === 'Out').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
+    const overnightOut = nextEvents.filter(r => r.Type === 'Overnight Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
     const lunchOut = events.filter(r => r.Type === 'Lunch Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
     const lunchIn = events.filter(r => r.Type === 'Lunch In').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
-    const schedule = resolveSchedule(staff, dateYmd, scheduleAssignments, scheduleRules, events);
+
+    const autoNightShift = !!firstIn && isAutoNightShift(dateYmd, firstIn.Time);
+    const schedule = autoNightShift
+      ? {
+          source: 'Auto Night Shift',
+          assignment: null,
+          rule: {
+            'Schedule Name': 'Working Hour Night Shift',
+            'Shift Variant': 'NIGHT',
+            'Day Rule': 'MON-FRI',
+            'Start Time': '20:00',
+            'End Time': '06:00',
+            'Ends Next Day': 'TRUE'
+          }
+        }
+      : resolveSchedule(staff, dateYmd, scheduleAssignments, scheduleRules, events);
+
+    const selectedOut = autoNightShift ? overnightOut : normalOut;
     const scheduledStart = schedule?.rule?.['Start Time'] || '';
     const inMin = parseTime(firstIn?.Time);
     const startMin = parseTime(scheduledStart);
     const lateMinutes = inMin != null && startMin != null ? Math.max(0, Math.round(inMin - startMin)) : null;
 
     let status = 'Absent';
-    if (firstIn && lastOut) status = lateMinutes > 0 ? 'Late' : 'Complete';
-    else if (firstIn && !lastOut) status = 'Missing Out';
-    else if (!firstIn && lastOut) status = 'Missing In';
+    if (firstIn && selectedOut) status = lateMinutes > 0 ? 'Late' : 'Complete';
+    else if (firstIn && !selectedOut) status = 'Missing Out';
+    else if (!firstIn && selectedOut) status = 'Missing In';
     else if (dateDim?.Day === 'PH') status = 'Public Holiday';
     else if (dateDim?.Day === 'SUN') status = 'Rest Day';
 
@@ -119,16 +149,21 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
       position: staff['Job Title'] || staff.Department || '',
       schedule: schedule?.rule?.['Schedule Name'] || '',
       scheduleSource: schedule?.source || 'Unassigned',
+      shiftVariant: autoNightShift ? 'NIGHT' : (schedule?.rule?.['Shift Variant'] || 'NORMAL'),
+      isNightShift: autoNightShift,
       scheduledStart,
       scheduledEnd: schedule?.rule?.['End Time'] || '',
       clockIn: firstIn?.Time || '',
       lunchOut: lunchOut?.Time || '',
       lunchIn: lunchIn?.Time || '',
-      clockOut: lastOut?.Time || '',
+      clockOut: selectedOut?.Time || '',
+      clockOutType: selectedOut?.Type || '',
+      clockOutDate: selectedOut ? (autoNightShift ? nextDateDmy : dateDmy) : '',
+      overnightOut: overnightOut?.Time || '',
       lateMinutes,
       late: lateMinutes == null ? '' : minutesLabel(lateMinutes),
       status,
-      eventCount: events.length
+      eventCount: events.length + (autoNightShift && overnightOut ? 1 : 0)
     };
   });
 
@@ -143,4 +178,4 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
   return { date: dateYmd, dayType: dateDim?.Day || '', holiday: dateDim?.PH || '', kpi, items };
 }
 
-module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate };
+module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate, isAutoNightShift };

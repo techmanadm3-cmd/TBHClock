@@ -1,5 +1,5 @@
 const assert=require('assert');
-const {buildDailyAttendance,findPreviousScheduledWorkDate}=require('../src/attendance');
+const {buildDailyAttendance,findPreviousScheduledWorkDate,isAutoNightShift}=require('../src/attendance');
 const out=buildDailyAttendance({
  dateYmd:'2026-11-24',
  staffRows:[{Key:'TBH1','Staff Name':'Test','Department1':'PROD',Department:'OPERATOR',Status:'Active'}],
@@ -29,3 +29,46 @@ assert.equal(findPreviousScheduledWorkDate({
  ]
 }),'2026-11-27');
 console.log('previous scheduled work date tests PASS');
+
+assert.equal(isAutoNightShift('2026-11-23','18:00:00'),false);
+assert.equal(isAutoNightShift('2026-11-23','18:01:00'),true);
+assert.equal(isAutoNightShift('2026-11-28','19:00:00'),false);
+
+const nightBase={
+  dateYmd:'2026-11-23',
+  staffRows:[{Key:'TBH1','Staff Name':'Night Test','Department1':'PROD',Department:'OPERATOR',Status:'Active'}],
+  scheduleAssignments:[{'Staff Code':'TBH1','Schedule ID':'PROD_STD','Shift Variant':'NORMAL','Effective From':'2026-01-01',Active:'TRUE',Priority:'10'}],
+  scheduleRules:[
+    {'Schedule ID':'PROD_STD','Schedule Name':'Production Standard','Shift Variant':'NORMAL','Day Rule':'MON-FRI','Start Time':'08:00','End Time':'18:00',Active:'TRUE'},
+    {'Schedule ID':'PROD_STD','Schedule Name':'Production Standard','Shift Variant':'NIGHT','Day Rule':'MON-FRI','Start Time':'20:00','End Time':'06:00','Ends Next Day':'TRUE',Active:'TRUE'}
+  ],
+  dateDimRows:[{Date:'23/11/2026',Day:'WD'},{Date:'24/11/2026',Day:'WD'}]
+};
+
+const nightOnTime=buildDailyAttendance({
+  ...nightBase,
+  clockRows:[
+    {Date:'23/11/2026',Time:'19:30:00','Staff Name':'TBH1',Type:'In'},
+    {Date:'24/11/2026',Time:'06:00:00','Staff Name':'TBH1',Type:'Overnight Out'}
+  ]
+});
+assert.equal(nightOnTime.items[0].isNightShift,true);
+assert.equal(nightOnTime.items[0].schedule,'Working Hour Night Shift');
+assert.equal(nightOnTime.items[0].scheduledStart,'20:00');
+assert.equal(nightOnTime.items[0].scheduledEnd,'06:00');
+assert.equal(nightOnTime.items[0].clockOut,'06:00:00');
+assert.equal(nightOnTime.items[0].clockOutType,'Overnight Out');
+assert.equal(nightOnTime.items[0].lateMinutes,0);
+assert.equal(nightOnTime.items[0].status,'Complete');
+
+const nightLate=buildDailyAttendance({
+  ...nightBase,
+  clockRows:[
+    {Date:'23/11/2026',Time:'20:15:00','Staff Name':'TBH1',Type:'In'},
+    {Date:'24/11/2026',Time:'06:10:00','Staff Name':'TBH1',Type:'Overnight Out'}
+  ]
+});
+assert.equal(nightLate.items[0].lateMinutes,15);
+assert.equal(nightLate.items[0].status,'Late');
+
+console.log('night shift tests PASS');

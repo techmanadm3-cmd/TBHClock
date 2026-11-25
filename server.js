@@ -210,7 +210,14 @@ async function routeApi(req, res, url) {
           name:r.Name||st['Staff Name']||staffCode,
           type:r.Type||'',
           department:r.Department||st.Department1||'',
-          lateResult:r['Late Result']||'',
+          lateResult:(()=>{
+            if(r.Type==='In'){
+              const mins=clockMinutes(r.Time);
+              const weekday=new Date(`${date}T12:00:00+08:00`).getDay();
+              if(weekday>=1&&weekday<=5&&mins!=null&&mins>18*60) return mins>20*60?'Late':'';
+            }
+            return r['Late Result']||'';
+          })(),
           dayType:dayDim.Day||''
         };
       })
@@ -264,7 +271,9 @@ async function routeApi(req, res, url) {
           lunchIn:time12(x.lunchIn),
           otApproval:approval,
           position:st['Job Title']||st.Department||'',
-          department:st.Department1||x.department||''
+          department:st.Department1||x.department||'',
+          shiftVariant:x.shiftVariant||'NORMAL',
+          outType:x.clockOutType||''
         };
       })
       .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));
