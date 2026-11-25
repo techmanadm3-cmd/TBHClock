@@ -148,12 +148,7 @@ function normalizeClockLocation(location, nowMs=Date.now()) {
   const capturedMs=Date.parse(capturedAt);
   if(!Number.isFinite(latitude)||latitude < -90||latitude > 90) throw new Error('Invalid latitude received from device.');
   if(!Number.isFinite(longitude)||longitude < -180||longitude > 180) throw new Error('Invalid longitude received from device.');
-  if(!Number.isFinite(accuracy)||accuracy < 0||accuracy > 10000) throw new Error('Invalid GPS accuracy received from device.');
-  if(accuracy > 200) {
-    const e=new Error('Location accuracy is too low. Please turn Precise Location ON and retry.');
-    e.code='LOCATION_ACCURACY_LOW';
-    throw e;
-  }
+  if(!Number.isFinite(accuracy)||accuracy < 0) throw new Error('Invalid GPS accuracy received from device.');
   if(!Number.isFinite(capturedMs)) throw new Error('Invalid Location capture time.');
   if(capturedMs > nowMs + 2*60*1000 || nowMs - capturedMs > 10*60*1000) throw new Error('Location is outdated. Please allow the app to capture your current location again.');
   return {latitude,longitude,accuracy,capturedAt:new Date(capturedMs).toISOString()};
