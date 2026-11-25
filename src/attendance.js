@@ -76,15 +76,41 @@ function shiftYmd(ymd, days) {
   return d.toISOString().slice(0,10);
 }
 
-function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, dateDimRows, maxDays=21}) {
+function isExplicitNonWorkingDay(dim) {
+  const day = String(dim?.Day || '').trim().toUpperCase();
+  return ['PH','PUBLIC HOLIDAY','SUN','SUNDAY','REST DAY'].includes(day);
+}
+
+function hasStaffClockInOnDate({dateYmd, staff, clockRows=[]}) {
+  const candidateDmy = ymdToDmy(dateYmd);
+  const staffKey = String(staff?.Key || '').trim();
+  return clockRows.some(r =>
+    String(r.Date || '') === candidateDmy &&
+    String(r['Staff Name'] || '').trim() === staffKey &&
+    String(r.Type || '').trim() === 'In'
+  );
+}
+
+function findPreviousScheduledWorkDate({dateYmd, staff, assignments, rules, dateDimRows, clockRows=[], maxDays=21}) {
   for (let i=1; i<=maxDays; i++) {
     const candidate = shiftYmd(dateYmd, -i);
     const candidateDmy = ymdToDmy(candidate);
     const dim = dateDimRows.find(r => String(r.Date) === candidateDmy);
-    if (dim && String(dim.Day || '').toUpperCase() !== 'WD') continue;
+
+    // An actual In is direct evidence that the staff worked that date.
+    // Do not let a missing schedule assignment or non-"WD" day label hide it.
+    if (hasStaffClockInOnDate({dateYmd:candidate, staff, clockRows})) return candidate;
+
+    // Only explicit rest/holiday labels are skipped. Weekday labels such as
+    // MON/TUE/WED are valid and the assigned schedule decides whether it is a workday.
+    if (isExplicitNonWorkingDay(dim)) continue;
     if (resolveAssignedSchedule(staff, candidate, assignments, rules)) return candidate;
   }
   return '';
+}
+
+function isMissingOutFromPrevious(item) {
+  return !!item?.clockIn && !item?.clockOut;
 }
 
 function isAutoNightShift(dateYmd, inTime) {
@@ -178,4 +204,4 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
   return { date: dateYmd, dayType: dateDim?.Day || '', holiday: dateDim?.PH || '', kpi, items };
 }
 
-module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate, isAutoNightShift };
+module.exports = { rowsToObjects, buildDailyAttendance, parseTime, ymdToDmy, findPreviousScheduledWorkDate, isAutoNightShift, isMissingOutFromPrevious, hasStaffClockInOnDate };

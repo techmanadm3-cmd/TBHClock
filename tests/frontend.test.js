@@ -16,6 +16,8 @@ assert(!app.includes("$('#clockStaff').value"), 'Clock form must not submit a se
 assert(app.includes("label.textContent='Missing Out'"), 'Type In Missing Out label missing');
 assert(app.includes("field.value=missing?'Yes':'No'"), 'Missing flag Yes/No rendering missing');
 assert(app.includes("Please make adjustment for yesterday Out."), 'Missing Out adjustment note missing');
+assert(server.includes('missingOut = isMissingOutFromPrevious(previousItem)'), 'Missing Out must require previous In without matching Out');
+assert(server.includes('dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows,clockRows'), 'Previous work date must consider actual Clock rows');
 assert(app.includes("Please make adjustment for today In."), 'Missing In adjustment note missing');
 
 assert(!html.includes('type="file"'), 'Clock image must not expose a file upload control');

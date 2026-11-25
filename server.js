@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { GoogleSheetsClient } = require('./src/googleSheets');
-const { rowsToObjects, buildDailyAttendance, findPreviousScheduledWorkDate } = require('./src/attendance');
+const { rowsToObjects, buildDailyAttendance, findPreviousScheduledWorkDate, isMissingOutFromPrevious } = require('./src/attendance');
 
 const PORT = Number(process.env.PORT || 8080);
 const APP_SECRET = process.env.APP_SECRET || 'dev-secret-change-me';
@@ -181,12 +181,17 @@ async function routeApi(req, res, url) {
     const daily = buildDailyAttendance({dateYmd:date,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
     const current = daily.items[0] || {};
     const previousWorkDate = findPreviousScheduledWorkDate({
-      dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows
+      dateYmd:date,staff,assignments:scheduleAssignments,rules:scheduleRules,dateDimRows,clockRows
     });
+    let previousIn = '';
     let previousOut = '';
+    let missingOut = false;
     if (previousWorkDate) {
       const previous = buildDailyAttendance({dateYmd:previousWorkDate,staffRows:[staff],clockRows,dateDimRows,scheduleRules,scheduleAssignments});
-      previousOut = previous.items[0]?.clockOut || '';
+      const previousItem = previous.items[0] || {};
+      previousIn = previousItem.clockIn || '';
+      previousOut = previousItem.clockOut || '';
+      missingOut = isMissingOutFromPrevious(previousItem);
     }
     const dateDmy = ymdToDmyLocal(date);
     const usedTypes = [...new Set(
@@ -201,9 +206,10 @@ async function routeApi(req, res, url) {
       staffName:staff['Staff Name'] || '',
       department:staff.Department1 || '',
       previousWorkDate,
-      missingOut:!!previousWorkDate && !previousOut,
+      missingOut,
       missingIn:!current.clockIn,
       currentIn:current.clockIn || '',
+      previousIn,
       previousOut,
       usedTypes
     });

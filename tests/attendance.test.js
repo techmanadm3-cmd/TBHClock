@@ -1,5 +1,5 @@
 const assert=require('assert');
-const {buildDailyAttendance,findPreviousScheduledWorkDate,isAutoNightShift}=require('../src/attendance');
+const {buildDailyAttendance,findPreviousScheduledWorkDate,isAutoNightShift,isMissingOutFromPrevious}=require('../src/attendance');
 const out=buildDailyAttendance({
  dateYmd:'2026-11-24',
  staffRows:[{Key:'TBH1','Staff Name':'Test','Department1':'PROD',Department:'OPERATOR',Status:'Active'}],
@@ -72,3 +72,24 @@ assert.equal(nightLate.items[0].lateMinutes,15);
 assert.equal(nightLate.items[0].status,'Late');
 
 console.log('night shift tests PASS');
+
+
+const techmanLikeStaff={Key:'TECHMAN','Staff Name':'Techman','Department1':'IT',Status:'Active'};
+const actualClockFallback=findPreviousScheduledWorkDate({
+  dateYmd:'2026-11-25',
+  staff:techmanLikeStaff,
+  assignments:[],
+  rules:[],
+  dateDimRows:[
+    {Date:'24/11/2026',Day:'TUE'},
+    {Date:'25/11/2026',Day:'WED'}
+  ],
+  clockRows:[
+    {Date:'24/11/2026',Time:'08:00:00','Staff Name':'TECHMAN',Type:'In'}
+  ]
+});
+assert.equal(actualClockFallback,'2026-11-24','actual prior In must identify previous work date even without schedule assignment');
+assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:''}),true,'prior In without Out must be Missing Out');
+assert.equal(isMissingOutFromPrevious({clockIn:'08:00:00',clockOut:'17:45:00'}),false,'prior In with Out must not be Missing Out');
+assert.equal(isMissingOutFromPrevious({clockIn:'',clockOut:''}),false,'absence without In must not be Missing Out');
+console.log('missing out condition tests PASS');
