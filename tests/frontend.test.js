@@ -56,7 +56,7 @@ assert(app.includes('enableHighAccuracy:true'), 'High accuracy GPS mode missing'
 assert(app.includes('async function ensureFreshClockLocation()'), 'Fresh GPS requirement missing');
 assert(app.includes('location:clockLocation'), 'Clock save must send captured GPS');
 assert(server.includes('function serializeClockLocation'), 'Canonical Clock Location serializer missing');
-assert(server.includes("code:'LOCATION_REQUIRED'"), 'Server Location-required guard missing');
+assert(server.includes("code:e.code||'LOCATION_REQUIRED'"), 'Server Location-required fallback guard missing');
 assert(server.includes("location:parseClockLocation(r.Location||'')"), 'Clock Master must parse saved GPS');
 assert(server.includes('locationValue'), 'Clock sheet must save canonical GPS value');
 assert(server.includes('if(accuracy > 200)'), 'Server must reject coarse GPS accuracy');
