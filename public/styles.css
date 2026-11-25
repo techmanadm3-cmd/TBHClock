@@ -257,3 +257,10 @@ body{background:#f3f6fb}
   .camera-box,.camera-idle{min-height:155px}
   .camera-actions .btn{flex:1;min-height:48px}
 }
+
+.desktop-camera-disabled{border-style:solid;border-color:#d5dde7;background:#f4f6f8;cursor:not-allowed}
+.desktop-camera-disabled .camera-idle{color:#78879a;background:#f4f6f8}
+.desktop-camera-disabled .camera-icon{background:#e3e7ec;color:#8794a5}
+.desktop-camera-disabled .camera-action-btn{display:none}
+.desktop-camera-disabled small{color:#9aa5b2}
+.save-btn.desktop-disabled,.save-btn:disabled{cursor:not-allowed;opacity:.48;box-shadow:none}
