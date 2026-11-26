@@ -1,6 +1,5 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
-  clockmaster:{sortKey:'',sortDir:'',filters:{}},
   working:{sortKey:'',sortDir:'',filters:{}}
 };
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
@@ -17,9 +16,6 @@ function mapEmbedUrl(latitude,longitude){
   const lat=Number(latitude),lng=Number(longitude),pad=0.003;
   const bbox=[lng-pad,lat-pad,lng+pad,lat+pad].map(x=>x.toFixed(6)).join('%2C');
   return 'https://www.openstreetmap.org/export/embed.html?bbox='+bbox+'&layer=mapnik&marker='+lat.toFixed(6)+'%2C'+lng.toFixed(6);
-}
-function googleMapsUrl(latitude,longitude){
-  return 'https://www.google.com/maps?q='+Number(latitude).toFixed(6)+','+Number(longitude).toFixed(6);
 }
 function setLocationPermissionHelp(show){
   const actionRow=$('#locationActionRow'),helpBtn=$('#locationPermissionHelpBtn'),help=$('#locationPermissionHelp');
@@ -505,9 +501,6 @@ function cycleReportSort(key){
 }
 function reportFilterSourceRows(panel){
   const q=$('#search').value.trim().toLowerCase();
-  if(panel==='clockmaster'){
-    return (reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
-  }
   if(panel==='working'){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
   }
@@ -607,49 +600,6 @@ function renderReport(){
     return;
   }
 
-  if(reportPanel==='clockmaster'){
-    const columns=[
-      {key:'date',label:'Date'},
-      {key:'time',label:'Time'},
-      {key:'type',label:'Type'},
-      {key:'lateResult',label:'Late Result'},
-      {key:'department',label:'Department'},
-      {key:'dayType',label:'Day Type'}
-    ];
-    let rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
-    rows=applyReportTableState(rows);
-    const groups=[];
-    const groupMap=new Map();
-    for(const row of rows){
-      const key=`${row.staffCode||''}|${row.name||''}|${row.department||''}`;
-      let group=groupMap.get(key);
-      if(!group){
-        group={
-          key,
-          name:row.name||row.staffCode||'Unknown Staff',
-          staffCode:row.staffCode||'',
-          department:row.department||'Unassigned',
-          date:row.date||data.date||'',
-          rows:[]
-        };
-        groupMap.set(key,group);
-        groups.push(group);
-      }
-      group.rows.push(row);
-    }
-    $('#reportPanelTitle').textContent='Clock Master';
-    $('#resultMeta').textContent=`${rows.length} clock records · ${groups.length} staff${meta?' · '+meta:''}`;
-    $('#reportHead').innerHTML=reportHeader(columns);
-    let body='';
-    for(const group of groups){
-      const department=group.department&&group.department!=='Unassigned'?` (${esc(group.department)})`:'';
-      body+=`<tr class="clock-staff-group-row"><td colspan="6"><strong>${esc(group.name)}${department}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
-      body+=group.rows.map(x=>`<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.type)}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.department||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
-    }
-    $('#reportRows').innerHTML=body||'<tr><td colspan="6" class="empty-cell">No clock records</td></tr>';
-    return;
-  }
-
   const columns=[
     {key:'date',label:'Date'},
     {key:'name',label:'Staff Name'},
@@ -673,21 +623,6 @@ function renderReport(){
   if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
 }
 
-function openClockMap(button){
-  const lat=Number(button.dataset.lat),lng=Number(button.dataset.lng),accuracy=Number(button.dataset.accuracy||0);
-  if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
-  $('#mapModalTitle').textContent=button.dataset.name||'Clock Location';
-  $('#mapModalSubtitle').textContent=[button.dataset.date,button.dataset.time,button.dataset.type].filter(Boolean).join(' · ');
-  $('#mapModalCoordinates').textContent=lat.toFixed(6)+', '+lng.toFixed(6);
-  $('#mapModalAccuracy').textContent='GPS accuracy ±'+Math.round(accuracy)+' m';
-  $('#managerMapFrame').src=mapEmbedUrl(lat,lng);
-  $('#openGoogleMapsLink').href=googleMapsUrl(lat,lng);
-  $('#mapModal').classList.remove('hidden');
-}
-function closeClockMap(){
-  $('#mapModal').classList.add('hidden');
-  $('#managerMapFrame').removeAttribute('src');
-}
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}
 function setApprovalTab(tab){approvalTab=tab;$$('[data-approval-tab]').forEach(b=>b.classList.toggle('active',b.dataset.approvalTab===tab));renderApprovals()}
 function renderApprovals(){
@@ -739,7 +674,6 @@ $('#reportHead').addEventListener('click',e=>{
   const filter=e.target.closest('[data-report-filter]');
   if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
 });
-$('#reportRows').addEventListener('click',e=>{const button=e.target.closest('[data-clock-map]');if(button)openClockMap(button)});
 $('#reportFilterSelect').onchange=applyReportFilterSelection;
 $('#reportFilterSelect').addEventListener('keydown',e=>{if(e.key==='Escape')closeReportFilter()});
 document.addEventListener('click',e=>{
@@ -748,9 +682,6 @@ document.addEventListener('click',e=>{
   if(pop.contains(e.target)||e.target.closest('[data-report-filter]'))return;
   closeReportFilter();
 });
-$('#closeMapModalBtn').onclick=closeClockMap;
-$('#mapModal').addEventListener('click',e=>{if(e.target===$('#mapModal'))closeClockMap()});
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#mapModal').classList.contains('hidden'))closeClockMap()});
 window.addEventListener('resize',()=>{if(!isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden');applySavedSidebarState()}else{document.body.classList.remove('sidebar-collapsed')}applyClockDevicePolicy()});
 window.addEventListener('pagehide',stopClockCamera);
 setType('In');

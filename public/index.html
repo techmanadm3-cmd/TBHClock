@@ -199,10 +199,6 @@
             <span id="todayModuleDay" class="module-icon calendar">24</span>
             <span><strong>Today</strong><small>Human Resource</small></span>
           </button>
-          <button class="module-card" data-report-panel="clockmaster">
-            <span class="module-icon clock">◷</span>
-            <span><strong>Clock Master</strong><small>Human Resource</small></span>
-          </button>
           <button class="module-card" data-report-panel="working">
             <span class="module-icon worker">◴</span>
             <span><strong>Working Hours</strong><small>Human Resource</small></span>
@@ -249,27 +245,6 @@
 <div id="reportFilterPopover" class="report-filter-popover hidden" role="dialog" aria-modal="false" aria-labelledby="reportFilterLabel">
   <label id="reportFilterLabel" for="reportFilterSelect">Filter</label>
   <select id="reportFilterSelect" class="control" aria-label="Filter value"></select>
-</div>
-
-<div id="mapModal" class="map-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
-  <div class="map-modal-card">
-    <button id="closeMapModalBtn" class="map-modal-close" type="button" aria-label="Close map">×</button>
-    <div class="map-modal-head">
-      <span class="map-pin-icon">●</span>
-      <div>
-        <h2 id="mapModalTitle">Clock Location</h2>
-        <p id="mapModalSubtitle"></p>
-      </div>
-    </div>
-    <iframe id="managerMapFrame" class="manager-map-frame" title="Employee clock location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-    <div class="map-modal-footer">
-      <div>
-        <strong id="mapModalCoordinates"></strong>
-        <span id="mapModalAccuracy"></span>
-      </div>
-      <a id="openGoogleMapsLink" class="btn outline map-external-link" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
-    </div>
-  </div>
 </div>
 
 <script src="/app.js"></script>

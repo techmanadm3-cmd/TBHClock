@@ -157,13 +157,6 @@ function serializeClockLocation(location, nowMs=Date.now()) {
   const p=normalizeClockLocation(location,nowMs);
   return ['GPS',p.latitude.toFixed(6),p.longitude.toFixed(6),Math.round(p.accuracy),p.capturedAt].join('|');
 }
-function parseClockLocation(value) {
-  const m=String(value||'').trim().match(/^GPS\|(-?\d+(?:\.\d+)?)\|(-?\d+(?:\.\d+)?)\|(\d+(?:\.\d+)?)\|(.+)$/);
-  if(!m) return null;
-  const latitude=Number(m[1]),longitude=Number(m[2]),accuracy=Number(m[3]),capturedAt=String(m[4]||'');
-  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy)) return null;
-  return {latitude,longitude,accuracy,capturedAt};
-}
 function clockMinutes(value) {
   if(!value) return null;
   const m=String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -310,37 +303,6 @@ async function routeApi(req, res, url) {
     ]);
     const staffByKey=new Map(staffRows.map(x=>[String(x.Key||''),x]));
     const dayDim=dateDimRows.find(x=>String(x.Date||'')===dateDmy)||{};
-    let dayClock=clockRows.filter(x=>String(x.Date||'')===dateDmy);
-    if(String(user.permission||'').toUpperCase()==='STAFF') dayClock=dayClock.filter(x=>String(x['Staff Name']||'')===String(user.staffCode||''));
-
-    const clockMaster=dayClock
-      .map(r=>{
-        const staffCode=String(r['Staff Name']||'');
-        const st=staffByKey.get(staffCode)||{};
-        return {
-          key:r.Key||'',
-          date:r.Date||dateDmy,
-          time:time12(r.Time||''),
-          rawTime:r.Time||'',
-          staffCode,
-          name:r.Name||st['Staff Name']||staffCode,
-          type:r.Type||'',
-          department:r.Department||st.Department1||'',
-          location:parseClockLocation(r.Location||''),
-          locationRaw:r.Location||'',
-          lateResult:(()=>{
-            if(r.Type==='In'){
-              const mins=clockMinutes(r.Time);
-              const weekday=new Date(`${date}T12:00:00+08:00`).getDay();
-              if(weekday>=1&&weekday<=5&&mins!=null&&mins>18*60) return mins>20*60?'Late':'';
-            }
-            return r['Late Result']||'';
-          })(),
-          dayType:dayDim.Day||''
-        };
-      })
-      .sort((x,y)=>(x.department||'').localeCompare(y.department||'') || (x.name||'').localeCompare(y.name||'') || (clockMinutes(x.rawTime)||0)-(clockMinutes(y.rawTime)||0));
-
     let daily=buildDailyAttendance({dateYmd:date,staffRows,clockRows,dateDimRows,scheduleRules,scheduleAssignments});
     if(String(user.permission||'').toUpperCase()==='STAFF') daily.items=daily.items.filter(x=>x.staffCode===user.staffCode);
 
@@ -397,7 +359,7 @@ async function routeApi(req, res, url) {
       })
       .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));
 
-    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',clockMaster,workingHours});
+    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours});
   }
 
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
