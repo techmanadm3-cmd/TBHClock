@@ -5,6 +5,7 @@ const app = fs.readFileSync('public/app.js','utf8');
 const html = fs.readFileSync('public/index.html','utf8');
 const server = fs.readFileSync('server.js','utf8');
 const lines = app.split(/\r?\n/).map(x=>x.trim());
+const appLf = app.replace(/\r\n/g,'\n');
 
 assert(!lines.some(x=>x.startsWith("$('[data-view]').forEach")), 'data-view must use $$() for NodeList iteration');
 assert(!lines.some(x=>x.includes(";$('[data-report-panel]').forEach")), 'data-report-panel must use $$() for NodeList iteration');
@@ -99,7 +100,7 @@ assert(!app.includes('class="department-group-row"'), 'Clock Master must not gro
 assert(!app.includes('class="staff-group-row"'), 'Clock Master must render normal rows without staff group rows');
 assert(app.includes("{key:'department',label:'Department'}"), 'Department column definition missing');
 assert(!app.includes("<th>Position</th>"), 'Working Hours Position column must be removed');
-assert(app.includes("{key:'name',label:'Staff Name'},\n    {key:'department',label:'Department'}"), 'Working Hours Department must follow Staff Name');
-assert(app.includes("{key:'clockIn',label:'In'},\n    {key:'lunchOut',label:'Lunch Out'},\n    {key:'lunchIn',label:'Lunch In'},\n    {key:'clockOut',label:'Out'}"), 'Working Hours Lunch Out/In must appear between In and Out');
+assert(appLf.includes("{key:'name',label:'Staff Name'},\n    {key:'department',label:'Department'}"), 'Working Hours Department must follow Staff Name');
+assert(appLf.includes("{key:'clockIn',label:'In'},\n    {key:'lunchOut',label:'Lunch Out'},\n    {key:'lunchIn',label:'Lunch In'},\n    {key:'clockOut',label:'Out'}"), 'Working Hours Lunch Out/In must appear between In and Out');
 assert(app.includes('colspan="11" class="empty-cell">No working hour records'), 'Working Hours empty-row colspan must match 11 columns');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
