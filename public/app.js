@@ -448,12 +448,12 @@ function reportColumnValue(row,key){
 function reportSortToken(value,key){
   const s=String(value??'').trim();
   if(key==='date'){
-    let m=s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);
+    let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if(m)return Number(`${m[3]}${m[2].padStart(2,'0')}${m[1].padStart(2,'0')}`);
-    m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+    m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if(m)return Number(`${m[1]}${m[2]}${m[3]}`);
   }
-  const tm=s.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)?$/i);
+  const tm=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
   if(tm){
     let h=Number(tm[1]),mins=Number(tm[2]);
     const ap=String(tm[3]||'').toUpperCase();
@@ -461,7 +461,7 @@ function reportSortToken(value,key){
     return h*60+mins;
   }
   const n=Number(s.replace(/[^0-9.-]/g,''));
-  if(s&&Number.isFinite(n)&&/^[\\s$RMrm0-9.,:+-]+$/.test(s))return n;
+  if(s&&Number.isFinite(n)&&/^[\s$RMrm0-9.,:+-]+$/.test(s))return n;
   return s.toLowerCase();
 }
 function applyReportTableState(rows){
