@@ -445,11 +445,15 @@ async function routeApi(req, res, url) {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
-    const [clockRows, staffRows] = await Promise.all([loadClock(), loadStaff()]);
+    const [rawClockRows, staffRows] = await Promise.all([sheets.get('Clock!A:T'), loadStaff()]);
     const staffByKey = new Map(staffRows.map(s => [String(s.Key || ''), s]));
     const approverStaff = staffByKey.get(String(user.staffCode || '')) || {};
     const approverPermission = approvalPermission(approverStaff.Permission || user.permission);
-    const allItems = clockRows.map((r,index) => normalizeApprovalItem(r,staffByKey,index+2)).reverse();
+    const clockHeaders=rawClockRows[0]||[];
+    const allItems=rawClockRows.slice(1).map((row,index)=>{
+      const record=Object.fromEntries(clockHeaders.map((header,col)=>[String(header||''),row?.[col]||'']));
+      return normalizeApprovalItem(record,staffByKey,index+2);
+    }).filter(x=>Object.values(x).some(v=>String(v??'').trim()!=='')).reverse();
 
     const late = allItems
       .filter(isLateApprovalCandidate)
@@ -498,30 +502,43 @@ async function routeApi(req, res, url) {
       const approverStaff=staffByKey.get(String(user.staffCode||''))||{};
 
       if(!key){
-        const identityMatches=
-          String(item.date||'')===String(body.date||'') &&
-          String(item.time||'')===String(body.time||'') &&
-          String(item.staffCode||'')===String(body.staffCode||'') &&
-          String(item.type||'')===String(body.type||'');
-        if(!identityMatches){
-          return json(res,409,{error:'This Clock row changed after the page was loaded. Please refresh Approval Center and try again.'});
+        const matchesIdentity=record=>
+          String(record.Date||'')===String(body.date||'') &&
+          String(record.Time||'')===String(body.time||'') &&
+          String(record['Staff Name']||'')===String(body.staffCode||'') &&
+          String(record.Type||'')===String(body.type||'');
+
+        if(!matchesIdentity(rawRecord)){
+          const identityRows=[];
+          for(let index=1;index<rawRows.length;index++){
+            const candidate=Object.fromEntries(headers.map((header,col)=>[String(header||''),rawRows[index]?.[col]||'']));
+            if(matchesIdentity(candidate)) identityRows.push(index);
+          }
+          if(identityRows.length!==1){
+            return json(res,409,{error:'This Clock row changed after the page was loaded. Please refresh Approval Center and try again.'});
+          }
+          rowIndex=identityRows[0];
         }
       }
 
-      if(!isLateApprovalCandidate(item)){
-        const currentApproval=String(item.approval||'').trim();
+      const resolvedSheetRow=rowIndex+1;
+      const resolvedRawRecord=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
+      const resolvedItem=normalizeApprovalItem(resolvedRawRecord,staffByKey,resolvedSheetRow);
+
+      if(!isLateApprovalCandidate(resolvedItem)){
+        const currentApproval=String(resolvedItem.approval||'').trim();
         if(currentApproval) return json(res,409,{error:'This Clock Late record is already '+currentApproval+'.'});
         return json(res,409,{error:'This record is not eligible for Clock Late Approval.'});
       }
-      if(!canAccessLateApproval(user,approverStaff,item)){
+      if(!canAccessLateApproval(user,approverStaff,resolvedItem)){
         return json(res,403,{error:'You are not allowed to approve or reject this Clock Late record.'});
       }
 
       const status=action==='approve'?'Approved':'Rejected';
       const approvalBy=approvalByText(action,approvalActor(approverStaff,user));
-      await sheets.update(`Clock!I${sheetRow}:J${sheetRow}`,[status,approvalBy]);
+      await sheets.update(`Clock!I${resolvedSheetRow}:J${resolvedSheetRow}`,[status,approvalBy]);
       cache.delete('clock');
-      return json(res,200,{ok:true,key,status,approvalBy,row:sheetRow});
+      return json(res,200,{ok:true,key,status,approvalBy,row:resolvedSheetRow});
     });
   }
 
