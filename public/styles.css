@@ -226,22 +226,22 @@ body{background:#f3f6fb}
 .report-filter-popover .control{width:100%;min-height:40px}
 #reportFilterSelect{cursor:pointer;background:#fff}
 .clock-staff-group-row td{
-  background:#eef5fc!important;
-  color:#173f6d;
-  border-top:1px solid #cbdced;
-  border-bottom:1px solid #d7e4f0;
-  padding-top:10px!important;
-  padding-bottom:10px!important
+  background:#f3f5f7!important;
+  color:#42566f;
+  border-top:1px solid #d7dde5;
+  border-bottom:1px solid #d7dde5;
+  padding:10px 14px!important
 }
-.clock-staff-group-row td strong{display:block;font-size:12px;color:#102f55}
-.clock-staff-group-row td small{display:block;margin-top:2px;font-size:9px;color:#7b8ca1}
+.clock-staff-group-row td strong{
+  display:inline;font-size:12px;font-weight:700;color:#41556d
+}
 .clock-staff-count{
-  display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;
-  background:#dceaf8;color:#52708e;font-size:10px;font-weight:800
+  display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;margin-left:8px;border-radius:5px;
+  background:#d9dde3;color:#4e5d6e;font-size:10px;font-weight:800;vertical-align:middle
 }
-.clock-staff-detail-row td:nth-child(2){font-weight:700;color:#173a66}
-.clock-staff-detail-row td:nth-child(3),
-.clock-staff-detail-row td:nth-child(4){background:#fbfdff}
+.clock-staff-detail-row td:nth-child(2){font-weight:600;color:#173a66}
+.clock-staff-detail-row td:nth-child(3) strong{display:block;font-size:12px}
+.clock-staff-detail-row td:nth-child(3) small{display:block;margin-top:2px;font-size:9px;color:#8090a4}
 .department-group-row td{
   background:#eaf2fb!important;
   color:#163e70;

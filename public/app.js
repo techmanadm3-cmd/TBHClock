@@ -1,7 +1,7 @@
 let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   clockmaster:{sortKey:'',sortDir:'',filters:{}},
-  workinghours:{sortKey:'',sortDir:'',filters:{}}
+  working:{sortKey:'',sortDir:'',filters:{}}
 };
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
@@ -442,7 +442,7 @@ function reportColumnValue(row,key){
     const loc=row.location;
     return loc?`${loc.latitude}, ${loc.longitude} ±${Math.round(Number(loc.accuracy)||0)}m`:'';
   }
-  if(key==='name')return `${row.name||''} ${row.staffCode||''}`.trim();
+  if(key==='name')return String(row.name||'').trim();
   return row[key]??'';
 }
 function reportSortToken(value,key){
@@ -508,7 +508,7 @@ function reportFilterSourceRows(panel){
   if(panel==='clockmaster'){
     return (reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
   }
-  if(panel==='workinghours'){
+  if(panel==='working'){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
   }
   return [];
@@ -605,8 +605,8 @@ function renderReport(){
       {key:'date',label:'Date'},
       {key:'time',label:'Time'},
       {key:'name',label:'Staff Name'},
-      {key:'department',label:'Department'},
       {key:'type',label:'Type'},
+      {key:'department',label:'Department'},
       {key:'location',label:'Location'},
       {key:'lateResult',label:'Late Result'},
       {key:'dayType',label:'Day Type'}
@@ -637,13 +637,13 @@ function renderReport(){
     $('#reportHead').innerHTML=reportHeader(columns);
     let body='';
     for(const group of groups){
-      body+=`<tr class="clock-staff-group-row"><td>${esc(group.date||'—')}</td><td></td><td><strong>${esc(group.name)}</strong>${group.staffCode?`<small>${esc(group.staffCode)}</small>`:''}</td><td>${esc(group.department)}</td><td colspan="4"><span class="clock-staff-count">${group.rows.length} record${group.rows.length===1?'':'s'}</span></td></tr>`;
+      body+=`<tr class="clock-staff-group-row"><td colspan="8"><strong>${esc(group.name)}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
       body+=group.rows.map(x=>{
         const loc=x.location;
         const locationCell=loc
           ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
           : '—';
-        return `<tr class="clock-staff-detail-row"><td></td><td>${esc(x.time)}</td><td></td><td></td><td>${esc(x.type)}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
+        return `<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td><strong>${esc(x.name)}</strong>${x.staffCode?`<small>${esc(x.staffCode)}</small>`:''}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
       }).join('');
     }
     $('#reportRows').innerHTML=body||'<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';

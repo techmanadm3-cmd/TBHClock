@@ -90,6 +90,8 @@ assert(app.includes("'Hide Location Help'"), 'Location help toggle state missing
 assert(app.includes('setLocationPermissionHelp(false)'), 'Successful GPS must hide permission help');
 
 assert(app.includes("const reportTableState={"), 'Report table filter/sort state missing');
+assert(app.includes("working:{sortKey:'',sortDir:'',filters:{}}"), 'Working Hours filter/sort state key must match data-report-panel');
+assert(!app.includes("workinghours:{sortKey"), 'Stale Working Hours state key must be removed');
 assert(app.includes("function reportHeader(columns)"), 'Report header controls renderer missing');
 assert(app.includes("data-report-filter"), 'Report header filter buttons missing');
 assert(app.includes("class=\"report-sort-label\" data-report-sort"), 'Report header label sort target missing');
@@ -98,6 +100,8 @@ assert(!app.includes("sort-state"), 'Visible sort arrow/state must be removed');
 assert(!app.includes("sortSvg"), 'Visible sort SVG icon must be removed');
 assert(app.includes("function cycleReportSort(key)"), 'Report sort behavior missing');
 assert(app.includes("function reportFilterOptions(key)"), 'Report dropdown unique-value builder missing');
+assert(app.includes("if(panel==='working')"), 'Working Hours dropdown source must use working panel key');
+assert(app.includes("if(key==='name')return String(row.name||'').trim()"), 'Staff Name dropdown must use staff name only');
 assert(app.includes("function applyReportFilterSelection()"), 'Report dropdown filter behavior missing');
 assert(html.includes('id="reportFilterPopover"'), 'Report filter popover missing');
 assert(html.includes('id="reportFilterSelect"'), 'Report filter dropdown missing');
@@ -106,6 +110,9 @@ assert(app.includes("all.textContent='All'"), 'Filter dropdown All option missin
 assert(app.includes("select.onchange")||app.includes("$('#reportFilterSelect').onchange=applyReportFilterSelection"), 'Filter dropdown must apply on selection');
 assert(!app.includes('class="department-group-row"'), 'Clock Master must not group rows by Department');
 assert(app.includes('class="clock-staff-group-row"'), 'Clock Master must group rows by Staff');
+assert(app.includes('class="clock-staff-group-row"><td colspan="8"'), 'Clock Master staff group header must span the full table');
+assert(app.includes('class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td><strong>${esc(x.name)}</strong>'), 'Clock Master grouped detail rows must keep full Date/Time/Staff values');
+assert(app.includes("<td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td>"), 'Clock Master detail rows must show Type before Department');
 assert(app.includes("const groupMap=new Map()"), 'Clock Master staff grouping map missing');
 assert(app.includes("groups.length} staff"), 'Clock Master group count missing');
 assert(app.includes("{key:'department',label:'Department'}"), 'Department column definition missing');
