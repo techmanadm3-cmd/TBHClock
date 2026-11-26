@@ -225,12 +225,31 @@ body{background:#f3f6fb}
 .report-filter-popover label{display:block;margin:0 0 7px;color:#203b5e;font-size:12px;font-weight:850}
 .report-filter-popover .control{width:100%;min-height:40px}
 #reportFilterSelect{cursor:pointer;background:#fff}
+.working-hours-row{cursor:pointer}
+.working-hours-row:hover td{background:#f7fbff}
+.working-hours-row:focus{outline:2px solid #7fb5ea;outline-offset:-2px}
+.working-details-modal{position:fixed;inset:0;z-index:1300;background:#07182a99;display:grid;place-items:center;padding:20px}
+.working-details-modal.hidden{display:none}
+.working-details-card{position:relative;width:min(620px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 70px #06182b55;padding:22px}
+.working-details-close{position:absolute;right:14px;top:12px;width:36px;height:36px;border:0;border-radius:50%;background:#edf2f7;color:#244463;font-size:24px;line-height:1;cursor:pointer}
+.working-details-head{padding-right:48px;margin-bottom:16px}
+.working-details-head h2{margin:0;color:#10284a;font-size:20px}
+.working-details-head p{margin:5px 0 0;color:#74849a;font-size:12px}
+.working-details-events{display:grid;gap:8px}
+.working-detail-event{display:grid;grid-template-columns:86px minmax(120px,1fr) auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid #dce5ef;border-radius:12px;background:#fbfdff}
+.working-detail-date{font-size:12px;font-weight:850;color:#16375f}
+.working-detail-type{font-size:13px;color:#4f6278}
+.working-detail-event strong{font-size:13px;color:#0b63b9;white-space:nowrap}
+.working-detail-empty{padding:24px;text-align:center;color:#7d8b9c}
 .report-table-block{max-height:62vh;overflow:auto}
 .report-table-block thead th{position:sticky;top:0;z-index:3}
 @media(max-width:760px){
   .today-cards{grid-template-columns:1fr;padding:12px}
   .today-staff-card{min-height:76px}
-  .report-data-table{min-width:1280px}
+  .report-data-table{min-width:1380px}
+  .working-details-modal{padding:10px}
+  .working-details-card{width:100%;padding:18px}
+  .working-detail-event{grid-template-columns:76px minmax(100px,1fr) auto;gap:8px}
 }
 
 /* Clock login-bound staff and dynamic validation */

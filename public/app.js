@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   working:{sortKey:'',sortDir:'',filters:{}}
 };
@@ -604,6 +604,7 @@ function renderReport(){
     {key:'date',label:'Date'},
     {key:'name',label:'Staff Name'},
     {key:'department',label:'Department'},
+    {key:'shift',label:'Shift'},
     {key:'duration',label:'Duration'},
     {key:'lateResult',label:'Late Result'},
     {key:'clockIn',label:'In'},
@@ -614,13 +615,37 @@ function renderReport(){
     {key:'otApprovalHours',label:'OT Approval Hours'},
     {key:'otApproval',label:'OT Approval'}
   ];
-  let rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.lateResult} ${x.otApproval}`.toLowerCase().includes(q));
+  let rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.shift} ${x.lateResult} ${x.otApproval}`.toLowerCase().includes(q));
   rows=applyReportTableState(rows);
   $('#reportPanelTitle').textContent='Working Hours';
   $('#resultMeta').textContent=`${rows.length} staff records${meta?' · '+meta:''}`;
   $('#reportHead').innerHTML=reportHeader(columns);
-  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.duration||'—')}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.otApproval||'—')}</td></tr>`).join('');
-  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
+  workingDetailRows=rows;
+  $('#reportRows').innerHTML=rows.map((x,index)=>`<tr class="working-hours-row" data-working-detail="${index}" tabindex="0" aria-label="View working hour details for ${esc(x.name)}"><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.shift||'Normal')}</td><td>${esc(x.duration||'—')}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.otApproval||'—')}</td></tr>`).join('');
+  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="13" class="empty-cell">No working hour records</td></tr>';
+}
+
+function workingDetailDate(value){
+  const m=String(value||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m)return String(value||'');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return Number(m[1])+' '+months[Number(m[2])-1];
+}
+function openWorkingDetails(index){
+  const x=workingDetailRows[Number(index)];
+  if(!x)return;
+  $('#workingDetailsTitle').textContent=x.name||'Working Hours Details';
+  $('#workingDetailsMeta').textContent=[x.department,x.shift,x.date].filter(Boolean).join(' · ');
+  $('#workingDetailsEvents').innerHTML=(x.events||[]).map(event=>`
+    <div class="working-detail-event">
+      <span class="working-detail-date">${esc(workingDetailDate(event.date))}</span>
+      <span class="working-detail-type">${esc(event.type)}</span>
+      <strong>${esc(event.time||'—')}</strong>
+    </div>`).join('')||'<div class="working-detail-empty">No clock events.</div>';
+  $('#workingDetailsModal').classList.remove('hidden');
+}
+function closeWorkingDetails(){
+  $('#workingDetailsModal').classList.add('hidden');
 }
 
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}
@@ -674,6 +699,19 @@ $('#reportHead').addEventListener('click',e=>{
   const filter=e.target.closest('[data-report-filter]');
   if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
 });
+$('#reportRows').addEventListener('click',e=>{
+  const row=e.target.closest('[data-working-detail]');
+  if(row)openWorkingDetails(row.dataset.workingDetail);
+});
+$('#reportRows').addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-working-detail]')){
+    e.preventDefault();
+    openWorkingDetails(e.target.dataset.workingDetail);
+  }
+});
+$('#closeWorkingDetailsBtn').onclick=closeWorkingDetails;
+$('#workingDetailsModal').addEventListener('click',e=>{if(e.target===$('#workingDetailsModal'))closeWorkingDetails()});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#workingDetailsModal').classList.contains('hidden'))closeWorkingDetails()});
 $('#reportFilterSelect').onchange=applyReportFilterSelection;
 $('#reportFilterSelect').addEventListener('keydown',e=>{if(e.key==='Escape')closeReportFilter()});
 document.addEventListener('click',e=>{

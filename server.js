@@ -354,7 +354,14 @@ async function routeApi(req, res, url) {
           position:st['Job Title']||st.Department||'',
           department:st.Department1||x.department||'',
           shiftVariant:x.shiftVariant||'NORMAL',
-          outType:x.clockOutType||''
+          shift:String(x.shiftVariant||'NORMAL').toUpperCase()==='NIGHT'?'Night':'Normal',
+          outType:x.clockOutType||'',
+          events:[
+            x.clockIn?{date:x.clockInDate||dateDmy,type:'In Time',time:time12(x.clockIn)}:null,
+            x.lunchOut?{date:x.lunchOutDate||dateDmy,type:'Lunch Out',time:time12(x.lunchOut)}:null,
+            x.lunchIn?{date:x.lunchInDate||dateDmy,type:'Lunch In',time:time12(x.lunchIn)}:null,
+            x.clockOut?{date:x.clockOutDate||dateDmy,type:x.clockOutType==='Overnight Out'?'Overnight Out':'Out',time:time12(x.clockOut)}:null
+          ].filter(Boolean)
         };
       })
       .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));

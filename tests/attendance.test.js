@@ -81,6 +81,9 @@ const nightCrossDay=buildDailyAttendance({
   ]
 });
 assert.equal(nightCrossDay.items[0].lunchOut,'01:00:00');
+assert.equal(nightCrossDay.items[0].clockInDate,'23/11/2026');
+assert.equal(nightCrossDay.items[0].lunchOutDate,'24/11/2026');
+assert.equal(nightCrossDay.items[0].lunchInDate,'24/11/2026');
 assert.equal(nightCrossDay.items[0].lunchIn,'01:30:00');
 assert.equal(nightCrossDay.items[0].clockOut,'06:05:00');
 assert.equal(nightCrossDay.items[0].clockOutType,'Out');
