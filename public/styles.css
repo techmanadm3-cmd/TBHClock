@@ -240,8 +240,6 @@ body{background:#f3f6fb}
   background:#d9dde3;color:#4e5d6e;font-size:10px;font-weight:800;vertical-align:middle
 }
 .clock-staff-detail-row td:nth-child(2){font-weight:600;color:#173a66}
-.clock-staff-detail-row td:nth-child(3) strong{display:block;font-size:12px}
-.clock-staff-detail-row td:nth-child(3) small{display:block;margin-top:2px;font-size:9px;color:#8090a4}
 .department-group-row td{
   background:#eaf2fb!important;
   color:#163e70;

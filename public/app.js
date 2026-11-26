@@ -604,10 +604,7 @@ function renderReport(){
     const columns=[
       {key:'date',label:'Date'},
       {key:'time',label:'Time'},
-      {key:'name',label:'Staff Name'},
       {key:'type',label:'Type'},
-      {key:'department',label:'Department'},
-      {key:'location',label:'Location'},
       {key:'lateResult',label:'Late Result'},
       {key:'dayType',label:'Day Type'}
     ];
@@ -637,16 +634,11 @@ function renderReport(){
     $('#reportHead').innerHTML=reportHeader(columns);
     let body='';
     for(const group of groups){
-      body+=`<tr class="clock-staff-group-row"><td colspan="8"><strong>${esc(group.name)}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
-      body+=group.rows.map(x=>{
-        const loc=x.location;
-        const locationCell=loc
-          ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
-          : '—';
-        return `<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td><strong>${esc(x.name)}</strong>${x.staffCode?`<small>${esc(x.staffCode)}</small>`:''}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
-      }).join('');
+      const department=group.department&&group.department!=='Unassigned'?` (${esc(group.department)})`:'';
+      body+=`<tr class="clock-staff-group-row"><td colspan="5"><strong>${esc(group.name)}${department}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
+      body+=group.rows.map(x=>`<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.type)}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
     }
-    $('#reportRows').innerHTML=body||'<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
+    $('#reportRows').innerHTML=body||'<tr><td colspan="5" class="empty-cell">No clock records</td></tr>';
     return;
   }
 
