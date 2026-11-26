@@ -153,7 +153,8 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
     const nightContinuation = autoNightShift
       ? nextEvents.filter(r => {
           const mins = parseTime(r.Time);
-          return mins != null && mins <= 12 * 60;
+          return ['Lunch Out','Lunch In','Out','Overnight Out'].includes(r.Type) &&
+            mins != null && mins <= 12 * 60;
         })
       : [];
     const nightLunchOut = nightContinuation.filter(r => r.Type === 'Lunch Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;

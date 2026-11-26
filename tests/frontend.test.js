@@ -3,6 +3,7 @@ const assert = require('assert');
 
 const app = fs.readFileSync('public/app.js','utf8');
 const html = fs.readFileSync('public/index.html','utf8');
+const css = fs.readFileSync('public/styles.css','utf8');
 const server = fs.readFileSync('server.js','utf8');
 const lines = app.split(/\r?\n/).map(x=>x.trim());
 const appLf = app.replace(/\r\n/g,'\n');
