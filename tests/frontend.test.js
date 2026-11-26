@@ -92,7 +92,10 @@ assert(app.includes('setLocationPermissionHelp(false)'), 'Successful GPS must hi
 assert(app.includes("const reportTableState={"), 'Report table filter/sort state missing');
 assert(app.includes("function reportHeader(columns)"), 'Report header controls renderer missing');
 assert(app.includes("data-report-filter"), 'Report header filter buttons missing');
-assert(app.includes("data-report-sort"), 'Report header sort buttons missing');
+assert(app.includes("class=\"report-sort-label\" data-report-sort"), 'Report header label sort target missing');
+assert(!app.includes("report-sort-btn"), 'Visible sort icon button must be removed');
+assert(!app.includes("sort-state"), 'Visible sort arrow/state must be removed');
+assert(!app.includes("sortSvg"), 'Visible sort SVG icon must be removed');
 assert(app.includes("function cycleReportSort(key)"), 'Report sort behavior missing');
 assert(app.includes("function applyReportFilter()"), 'Report filter behavior missing');
 assert(html.includes('id="reportFilterPopover"'), 'Report filter popover missing');

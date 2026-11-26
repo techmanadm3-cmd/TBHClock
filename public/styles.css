@@ -200,22 +200,23 @@ body{background:#f3f6fb}
 .today-card-copy span b{color:#155ca4;font-size:13px;margin-left:4px}
 .empty-card-state{grid-column:1/-1;padding:42px 18px;text-align:center;color:#7d8b9c}
 .report-data-table{min-width:1180px}
-.report-th-inner{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:118px}
-.report-th-inner>span:first-child{white-space:nowrap}
-.report-th-actions{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto}
+.report-th-inner{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:108px}
+.report-sort-label{
+  border:0;background:transparent;padding:4px 2px;margin:0;color:inherit;
+  font:inherit;font-weight:inherit;text-transform:inherit;letter-spacing:inherit;
+  white-space:nowrap;cursor:pointer;text-align:left
+}
+.report-sort-label:hover{color:#155ca4}
+.report-sort-label:focus-visible{outline:2px solid #7fb5ea;outline-offset:2px;border-radius:4px}
+.report-th-actions{display:inline-flex;align-items:center;flex:0 0 auto}
 .report-th-btn{
-  position:relative;display:inline-grid;place-items:center;width:27px;height:27px;padding:0;
-  border:1px solid transparent;border-radius:7px;background:transparent;color:#6f8093;cursor:pointer
+  position:relative;display:inline-grid;place-items:center;width:25px;height:25px;padding:0;
+  border:1px solid transparent;border-radius:7px;background:transparent;color:#8a98aa;cursor:pointer
 }
 .report-th-btn:hover{background:#edf4fb;color:#155ca4;border-color:#d5e4f2}
 .report-th-btn.active{background:#e6f1ff;color:#0b63b9;border-color:#bcd9f6}
-.report-th-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.report-th-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .report-filter-btn svg{fill:currentColor;stroke:none}
-.sort-state{
-  position:absolute;right:1px;bottom:-1px;display:grid;place-items:center;
-  min-width:11px;height:11px;border-radius:999px;background:#0b63b9;color:#fff;font-size:8px;font-weight:900;line-height:1
-}
-.sort-state:empty{display:none}
 .report-filter-popover{
   position:fixed;z-index:1400;padding:12px;background:#fff;border:1px solid #d8e3ee;border-radius:12px;
   box-shadow:0 14px 36px #102a4629

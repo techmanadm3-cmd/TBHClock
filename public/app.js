@@ -486,12 +486,9 @@ function applyReportTableState(rows){
 function reportHeader(columns){
   const state=reportPanelState();
   const filterSvg='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14l-5.4 6.1v4.5L8.5 16v-5.9L3 4Z"></path></svg>';
-  const sortSvg='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4v12m0-12L4.5 6.5M7 4l2.5 2.5M13 16V4m0 12-2.5-2.5M13 16l2.5-2.5"></path></svg>';
   return '<tr>'+columns.map(col=>{
     const filtered=!!String(state.filters?.[col.key]||'').trim();
-    const sorted=state.sortKey===col.key&&state.sortDir;
-    const sortTitle=sorted?`Sorted ${state.sortDir==='asc'?'ascending':'descending'}`:'Sort';
-    return `<th><div class="report-th-inner"><span>${esc(col.label)}</span><span class="report-th-actions"><button type="button" class="report-th-btn report-filter-btn${filtered?' active':''}" data-report-filter="${esc(col.key)}" data-report-label="${esc(col.label)}" aria-label="Filter ${esc(col.label)}" title="Filter ${esc(col.label)}">${filterSvg}</button><button type="button" class="report-th-btn report-sort-btn${sorted?' active':''}" data-report-sort="${esc(col.key)}" aria-label="${esc(sortTitle)} ${esc(col.label)}" title="${esc(sortTitle)}">${sortSvg}<span class="sort-state">${sorted?(state.sortDir==='asc'?'↑':'↓'):''}</span></button></span></div></th>`;
+    return `<th><div class="report-th-inner"><button type="button" class="report-sort-label" data-report-sort="${esc(col.key)}" aria-label="Sort ${esc(col.label)}" title="Click to sort">${esc(col.label)}</button><span class="report-th-actions"><button type="button" class="report-th-btn report-filter-btn${filtered?' active':''}" data-report-filter="${esc(col.key)}" data-report-label="${esc(col.label)}" aria-label="Filter ${esc(col.label)}" title="Filter ${esc(col.label)}">${filterSvg}</button></span></div></th>`;
   }).join('')+'</tr>';
 }
 function cycleReportSort(key){
