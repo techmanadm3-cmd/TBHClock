@@ -476,13 +476,16 @@ async function routeApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/approval-center/late-action') {
     const body=await readJson(req);
     const key=String(body.key||'').trim();
+    const requestedRow=Number(body.row||0);
     const action=String(body.action||'').trim().toLowerCase();
-    if(!key) return json(res,400,{error:'Clock record key is required.'});
+    if(!key&&!(Number.isInteger(requestedRow)&&requestedRow>=2)){
+      return json(res,400,{error:'Clock record reference is required. Please refresh Approval Center.'});
+    }
     if(!['approve','reject'].includes(action)) return json(res,400,{error:'Invalid approval action.'});
 
-    return await withClockSaveLock('late-approval:'+key,async()=>{
+    const approvalLockKey=key||('row:'+requestedRow);
+    return await withClockSaveLock('late-approval:'+approvalLockKey,async()=>{
       const rawRows=await sheets.get('Clock!A:T');
-      const requestedRow=Number(body.row||0);
       let rowIndex=-1;
 
       if(key){
