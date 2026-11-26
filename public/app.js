@@ -1,4 +1,8 @@
 let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={clockMaster:[],workingHours:[]},capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+const reportTableState={
+  clockmaster:{sortKey:'',sortDir:'',filters:{}},
+  workinghours:{sortKey:'',sortDir:'',filters:{}}
+};
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function timeMY(){const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kuala_Lumpur',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.hour}:${p.minute}`}
@@ -424,7 +428,122 @@ async function loadReport(){
     renderReport();
   }catch(e){toast(e.message,'error')}
 }
-function setReportPanel(panel){reportPanel=panel;$$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));renderReport()}
+function setReportPanel(panel){
+  reportPanel=panel;
+  closeReportFilter();
+  $$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
+  renderReport();
+}
+function reportPanelState(){
+  return reportTableState[reportPanel]||{sortKey:'',sortDir:'',filters:{}};
+}
+function reportColumnValue(row,key){
+  if(key==='location'){
+    const loc=row.location;
+    return loc?`${loc.latitude}, ${loc.longitude} ±${Math.round(Number(loc.accuracy)||0)}m`:'';
+  }
+  if(key==='name')return `${row.name||''} ${row.staffCode||''}`.trim();
+  return row[key]??'';
+}
+function reportSortToken(value,key){
+  const s=String(value??'').trim();
+  if(key==='date'){
+    let m=s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/);
+    if(m)return Number(`${m[3]}${m[2].padStart(2,'0')}${m[1].padStart(2,'0')}`);
+    m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
+    if(m)return Number(`${m[1]}${m[2]}${m[3]}`);
+  }
+  const tm=s.match(/^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)?$/i);
+  if(tm){
+    let h=Number(tm[1]),mins=Number(tm[2]);
+    const ap=String(tm[3]||'').toUpperCase();
+    if(ap){if(h===12)h=0;if(ap==='PM')h+=12}
+    return h*60+mins;
+  }
+  const n=Number(s.replace(/[^0-9.-]/g,''));
+  if(s&&Number.isFinite(n)&&/^[\\s$RMrm0-9.,:+-]+$/.test(s))return n;
+  return s.toLowerCase();
+}
+function applyReportTableState(rows){
+  const state=reportPanelState();
+  let out=rows.filter(row=>Object.entries(state.filters||{}).every(([key,value])=>{
+    const needle=String(value||'').trim().toLowerCase();
+    return !needle||String(reportColumnValue(row,key)).toLowerCase().includes(needle);
+  }));
+  if(state.sortKey&&state.sortDir){
+    const key=state.sortKey,dir=state.sortDir==='desc'?-1:1;
+    out=out.map((row,index)=>({row,index})).sort((a,b)=>{
+      const av=reportSortToken(reportColumnValue(a.row,key),key);
+      const bv=reportSortToken(reportColumnValue(b.row,key),key);
+      let cmp=0;
+      if(typeof av==='number'&&typeof bv==='number')cmp=av-bv;
+      else cmp=String(av).localeCompare(String(bv),undefined,{numeric:true,sensitivity:'base'});
+      return (cmp||a.index-b.index)*dir;
+    }).map(x=>x.row);
+  }
+  return out;
+}
+function reportHeader(columns){
+  const state=reportPanelState();
+  const filterSvg='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14l-5.4 6.1v4.5L8.5 16v-5.9L3 4Z"></path></svg>';
+  const sortSvg='<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4v12m0-12L4.5 6.5M7 4l2.5 2.5M13 16V4m0 12-2.5-2.5M13 16l2.5-2.5"></path></svg>';
+  return '<tr>'+columns.map(col=>{
+    const filtered=!!String(state.filters?.[col.key]||'').trim();
+    const sorted=state.sortKey===col.key&&state.sortDir;
+    const sortTitle=sorted?`Sorted ${state.sortDir==='asc'?'ascending':'descending'}`:'Sort';
+    return `<th><div class="report-th-inner"><span>${esc(col.label)}</span><span class="report-th-actions"><button type="button" class="report-th-btn report-filter-btn${filtered?' active':''}" data-report-filter="${esc(col.key)}" data-report-label="${esc(col.label)}" aria-label="Filter ${esc(col.label)}" title="Filter ${esc(col.label)}">${filterSvg}</button><button type="button" class="report-th-btn report-sort-btn${sorted?' active':''}" data-report-sort="${esc(col.key)}" aria-label="${esc(sortTitle)} ${esc(col.label)}" title="${esc(sortTitle)}">${sortSvg}<span class="sort-state">${sorted?(state.sortDir==='asc'?'↑':'↓'):''}</span></button></span></div></th>`;
+  }).join('')+'</tr>';
+}
+function cycleReportSort(key){
+  const state=reportPanelState();
+  if(state.sortKey!==key){state.sortKey=key;state.sortDir='asc'}
+  else if(state.sortDir==='asc')state.sortDir='desc';
+  else{state.sortKey='';state.sortDir=''}
+  closeReportFilter();
+  renderReport();
+}
+function openReportFilter(button,key,label){
+  const pop=$('#reportFilterPopover'),input=$('#reportFilterInput');
+  if(!pop||!input)return;
+  const state=reportPanelState();
+  pop.dataset.key=key;
+  pop.dataset.panel=reportPanel;
+  $('#reportFilterLabel').textContent='Filter '+label;
+  input.value=state.filters?.[key]||'';
+  pop.classList.remove('hidden');
+  const r=button.getBoundingClientRect();
+  const width=Math.min(300,window.innerWidth-24);
+  pop.style.width=width+'px';
+  const left=Math.max(12,Math.min(window.innerWidth-width-12,r.right-width));
+  pop.style.left=left+'px';
+  pop.style.top=Math.min(window.innerHeight-170,r.bottom+8)+'px';
+  setTimeout(()=>{input.focus();input.select()},0);
+}
+function closeReportFilter(){
+  const pop=$('#reportFilterPopover');
+  if(pop)pop.classList.add('hidden');
+}
+function applyReportFilter(){
+  const pop=$('#reportFilterPopover'),input=$('#reportFilterInput');
+  if(!pop||!input)return;
+  const panel=pop.dataset.panel,key=pop.dataset.key;
+  const state=reportTableState[panel];
+  if(!state||!key)return closeReportFilter();
+  const value=input.value.trim();
+  if(value)state.filters[key]=value;
+  else delete state.filters[key];
+  closeReportFilter();
+  renderReport();
+}
+function clearReportFilter(){
+  const pop=$('#reportFilterPopover');
+  if(!pop)return;
+  const panel=pop.dataset.panel,key=pop.dataset.key;
+  const state=reportTableState[panel];
+  if(state&&key)delete state.filters[key];
+  closeReportFilter();
+  renderReport();
+}
 function renderReport(){
   if(!data)return;
   const q=$('#search').value.trim().toLowerCase();
@@ -451,38 +570,52 @@ function renderReport(){
   }
 
   if(reportPanel==='clockmaster'){
-    const rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
+    const columns=[
+      {key:'date',label:'Date'},
+      {key:'time',label:'Time'},
+      {key:'name',label:'Staff Name'},
+      {key:'department',label:'Department'},
+      {key:'type',label:'Type'},
+      {key:'location',label:'Location'},
+      {key:'lateResult',label:'Late Result'},
+      {key:'dayType',label:'Day Type'}
+    ];
+    let rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
+    rows=applyReportTableState(rows);
     $('#reportPanelTitle').textContent='Clock Master';
     $('#resultMeta').textContent=`${rows.length} clock records${meta?' · '+meta:''}`;
-    $('#reportHead').innerHTML='<tr><th>Date</th><th>Time</th><th>Staff Name</th><th>Type</th><th>Department</th><th>Location</th><th>Late Result</th><th>Day Type</th></tr>';
-    const departments=[...new Set(rows.map(x=>x.department||'Unassigned'))];
-    let body='';
-    for(const dept of departments){
-      const deptRows=rows.filter(x=>(x.department||'Unassigned')===dept);
-      body+=`<tr class="department-group-row"><td colspan="8"><strong>${esc(dept)}</strong><span>${deptRows.length}</span></td></tr>`;
-      const staffNames=[...new Set(deptRows.map(x=>x.name||x.staffCode||'Unknown'))];
-      for(const staffName of staffNames){
-        const staffRows=deptRows.filter(x=>(x.name||x.staffCode||'Unknown')===staffName);
-        body+=`<tr class="staff-group-row"><td colspan="8"><strong>${esc(staffName)}</strong><span>${staffRows.length}</span></td></tr>`;
-        body+=staffRows.map(x=>{
-          const loc=x.location;
-          const locationCell=loc
-            ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
-            : '—';
-          return `<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.name)}</td><td>${esc(x.type)}</td><td>${esc(x.department||'—')}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
-        }).join('');
-      }
-    }
-    $('#reportRows').innerHTML=body||'<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
+    $('#reportHead').innerHTML=reportHeader(columns);
+    $('#reportRows').innerHTML=rows.map(x=>{
+      const loc=x.location;
+      const locationCell=loc
+        ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
+        : '—';
+      return `<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.type)}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
+    }).join('');
+    if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
     return;
   }
 
-  const rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.position} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  const columns=[
+    {key:'date',label:'Date'},
+    {key:'name',label:'Staff Name'},
+    {key:'department',label:'Department'},
+    {key:'duration',label:'Duration'},
+    {key:'clockIn',label:'In'},
+    {key:'lunchOut',label:'Lunch Out'},
+    {key:'lunchIn',label:'Lunch In'},
+    {key:'clockOut',label:'Out'},
+    {key:'actualOTHour',label:'Actual OT Hour'},
+    {key:'otApprovalHours',label:'OT Approval Hours'},
+    {key:'otApproval',label:'OT Approval'}
+  ];
+  let rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  rows=applyReportTableState(rows);
   $('#reportPanelTitle').textContent='Working Hours';
   $('#resultMeta').textContent=`${rows.length} staff records${meta?' · '+meta:''}`;
-  $('#reportHead').innerHTML='<tr><th>Date</th><th>Staff Name</th><th>Duration</th><th>In</th><th>Out</th><th>Actual OT Hour</th><th>OT Approval Hours</th><th>Lunch Out</th><th>Lunch In</th><th>OT Approval</th><th>Position</th><th>Department</th></tr>';
-  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.duration||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.otApproval||'—')}</td><td>${esc(x.position||'—')}</td><td>${esc(x.department||'—')}</td></tr>`).join('');
-  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
+  $('#reportHead').innerHTML=reportHeader(columns);
+  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.duration||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.otApproval||'—')}</td></tr>`).join('');
+  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="11" class="empty-cell">No working hour records</td></tr>';
 }
 
 function openClockMap(button){
@@ -545,7 +678,22 @@ $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
+$('#reportHead').addEventListener('click',e=>{
+  const sort=e.target.closest('[data-report-sort]');
+  if(sort){cycleReportSort(sort.dataset.reportSort);return}
+  const filter=e.target.closest('[data-report-filter]');
+  if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
+});
 $('#reportRows').addEventListener('click',e=>{const button=e.target.closest('[data-clock-map]');if(button)openClockMap(button)});
+$('#reportFilterApplyBtn').onclick=applyReportFilter;
+$('#reportFilterClearBtn').onclick=clearReportFilter;
+$('#reportFilterInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyReportFilter();if(e.key==='Escape')closeReportFilter()});
+document.addEventListener('click',e=>{
+  const pop=$('#reportFilterPopover');
+  if(!pop||pop.classList.contains('hidden'))return;
+  if(pop.contains(e.target)||e.target.closest('[data-report-filter]'))return;
+  closeReportFilter();
+});
 $('#closeMapModalBtn').onclick=closeClockMap;
 $('#mapModal').addEventListener('click',e=>{if(e.target===$('#mapModal'))closeClockMap()});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#mapModal').classList.contains('hidden'))closeClockMap()});

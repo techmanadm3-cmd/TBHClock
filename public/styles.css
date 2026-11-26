@@ -199,7 +199,32 @@ body{background:#f3f6fb}
 .today-card-copy span{display:block;color:#74849a;font-size:12px;margin-top:6px}
 .today-card-copy span b{color:#155ca4;font-size:13px;margin-left:4px}
 .empty-card-state{grid-column:1/-1;padding:42px 18px;text-align:center;color:#7d8b9c}
-.report-data-table{min-width:900px}
+.report-data-table{min-width:1180px}
+.report-th-inner{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:118px}
+.report-th-inner>span:first-child{white-space:nowrap}
+.report-th-actions{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto}
+.report-th-btn{
+  position:relative;display:inline-grid;place-items:center;width:27px;height:27px;padding:0;
+  border:1px solid transparent;border-radius:7px;background:transparent;color:#6f8093;cursor:pointer
+}
+.report-th-btn:hover{background:#edf4fb;color:#155ca4;border-color:#d5e4f2}
+.report-th-btn.active{background:#e6f1ff;color:#0b63b9;border-color:#bcd9f6}
+.report-th-btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.report-filter-btn svg{fill:currentColor;stroke:none}
+.sort-state{
+  position:absolute;right:1px;bottom:-1px;display:grid;place-items:center;
+  min-width:11px;height:11px;border-radius:999px;background:#0b63b9;color:#fff;font-size:8px;font-weight:900;line-height:1
+}
+.sort-state:empty{display:none}
+.report-filter-popover{
+  position:fixed;z-index:1400;padding:12px;background:#fff;border:1px solid #d8e3ee;border-radius:12px;
+  box-shadow:0 14px 36px #102a4629
+}
+.report-filter-popover.hidden{display:none}
+.report-filter-popover label{display:block;margin:0 0 7px;color:#203b5e;font-size:12px;font-weight:850}
+.report-filter-popover .control{width:100%;min-height:40px}
+.report-filter-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.report-filter-actions .btn{min-width:76px;padding:9px 12px}
 .department-group-row td{
   background:#eaf2fb!important;
   color:#163e70;
@@ -225,7 +250,7 @@ body{background:#f3f6fb}
 @media(max-width:760px){
   .today-cards{grid-template-columns:1fr;padding:12px}
   .today-staff-card{min-height:76px}
-  .report-data-table{min-width:1050px}
+  .report-data-table{min-width:1280px}
 }
 
 /* Clock login-bound staff and dynamic validation */

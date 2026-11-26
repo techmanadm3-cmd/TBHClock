@@ -246,6 +246,15 @@
   <div id="scrim" class="scrim hidden"></div>
 </div>
 
+<div id="reportFilterPopover" class="report-filter-popover hidden" role="dialog" aria-modal="false" aria-labelledby="reportFilterLabel">
+  <label id="reportFilterLabel" for="reportFilterInput">Filter</label>
+  <input id="reportFilterInput" class="control" type="text" autocomplete="off" placeholder="Type to filter">
+  <div class="report-filter-actions">
+    <button id="reportFilterClearBtn" type="button" class="btn outline">Clear</button>
+    <button id="reportFilterApplyBtn" type="button" class="btn primary">Apply</button>
+  </div>
+</div>
+
 <div id="mapModal" class="map-modal hidden" role="dialog" aria-modal="true" aria-labelledby="mapModalTitle">
   <div class="map-modal-card">
     <button id="closeMapModalBtn" class="map-modal-close" type="button" aria-label="Close map">×</button>

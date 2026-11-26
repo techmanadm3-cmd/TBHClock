@@ -87,4 +87,19 @@ assert(html.includes('Android / Chrome'), 'Android Chrome location instructions 
 assert(app.includes("const helpRecommended=!!(e&&e.code===1)"), 'Permission help must appear for denied GPS permission');
 assert(app.includes("'Hide Location Help'"), 'Location help toggle state missing');
 assert(app.includes('setLocationPermissionHelp(false)'), 'Successful GPS must hide permission help');
+
+assert(app.includes("const reportTableState={"), 'Report table filter/sort state missing');
+assert(app.includes("function reportHeader(columns)"), 'Report header controls renderer missing');
+assert(app.includes("data-report-filter"), 'Report header filter buttons missing');
+assert(app.includes("data-report-sort"), 'Report header sort buttons missing');
+assert(app.includes("function cycleReportSort(key)"), 'Report sort behavior missing');
+assert(app.includes("function applyReportFilter()"), 'Report filter behavior missing');
+assert(html.includes('id="reportFilterPopover"'), 'Report filter popover missing');
+assert(!app.includes('class="department-group-row"'), 'Clock Master must not group rows by Department');
+assert(!app.includes('class="staff-group-row"'), 'Clock Master must render normal rows without staff group rows');
+assert(app.includes("{key:'department',label:'Department'}"), 'Department column definition missing');
+assert(!app.includes("<th>Position</th>"), 'Working Hours Position column must be removed');
+assert(app.includes("{key:'name',label:'Staff Name'},\\n    {key:'department',label:'Department'}"), 'Working Hours Department must follow Staff Name');
+assert(app.includes("{key:'clockIn',label:'In'},\\n    {key:'lunchOut',label:'Lunch Out'},\\n    {key:'lunchIn',label:'Lunch In'},\\n    {key:'clockOut',label:'Out'}"), 'Working Hours Lunch Out/In must appear between In and Out');
+assert(app.includes('colspan="11" class="empty-cell">No working hour records'), 'Working Hours empty-row colspan must match 11 columns');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
