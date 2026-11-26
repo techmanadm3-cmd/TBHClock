@@ -584,19 +584,26 @@ function renderReport(){
 
   if(reportPanel==='today'){
     const cards=(data.items||[])
-      .filter(x=>x.clockIn)
+      .map(x=>{
+        if(x.clockOut)return null;
+        if(x.lunchIn)return {...x,currentStatus:'Back from Lunch',currentStatusTime:x.lunchIn};
+        if(x.lunchOut)return {...x,currentStatus:'Lunch Time',currentStatusTime:x.lunchOut};
+        if(x.clockIn)return {...x,currentStatus:'In Time',currentStatusTime:x.clockIn};
+        return null;
+      })
+      .filter(Boolean)
       .filter(x=>!q||`${x.staffCode} ${x.name} ${x.department}`.toLowerCase().includes(q));
     $('#reportPanelTitle').textContent='Today';
-    $('#resultMeta').textContent=`${cards.length} staff clocked in${meta?' · '+meta:''}`;
+    $('#resultMeta').textContent=`${cards.length} staff currently working${meta?' · '+meta:''}`;
     $('#todayCards').innerHTML=cards.map(x=>`
       <article class="today-staff-card">
         <div class="today-avatar">${esc(initials(x.name))}</div>
         <div class="today-card-copy">
           <strong>${esc(x.name)}</strong>
-          <span>In <b>${esc(x.clockIn)}</b></span>
+          <span>${esc(x.currentStatus)} <b>${esc(x.currentStatusTime)}</b></span>
         </div>
       </article>`).join('');
-    if(!cards.length)$('#todayCards').innerHTML='<div class="empty-card-state">No staff has clocked in for this date.</div>';
+    if(!cards.length)$('#todayCards').innerHTML='<div class="empty-card-state">No staff is currently working for this date.</div>';
     return;
   }
 
@@ -606,6 +613,7 @@ function renderReport(){
       {key:'time',label:'Time'},
       {key:'type',label:'Type'},
       {key:'lateResult',label:'Late Result'},
+      {key:'department',label:'Department'},
       {key:'dayType',label:'Day Type'}
     ];
     let rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
@@ -635,10 +643,10 @@ function renderReport(){
     let body='';
     for(const group of groups){
       const department=group.department&&group.department!=='Unassigned'?` (${esc(group.department)})`:'';
-      body+=`<tr class="clock-staff-group-row"><td colspan="5"><strong>${esc(group.name)}${department}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
-      body+=group.rows.map(x=>`<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.type)}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
+      body+=`<tr class="clock-staff-group-row"><td colspan="6"><strong>${esc(group.name)}${department}</strong><span class="clock-staff-count">${group.rows.length}</span></td></tr>`;
+      body+=group.rows.map(x=>`<tr class="clock-staff-detail-row"><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.type)}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.department||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`).join('');
     }
-    $('#reportRows').innerHTML=body||'<tr><td colspan="5" class="empty-cell">No clock records</td></tr>';
+    $('#reportRows').innerHTML=body||'<tr><td colspan="6" class="empty-cell">No clock records</td></tr>';
     return;
   }
 
