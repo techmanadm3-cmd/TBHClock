@@ -653,19 +653,39 @@ function setApprovalTab(tab){approvalTab=tab;$$('[data-approval-tab]').forEach(b
 function lateApprovalActions(x){
   const status=String(x.approval||'').trim();
   if(!approvalData.canApprove||status&&status.toLowerCase()!=='pending')return '—';
-  return `<div class="approval-action-group"><button type="button" class="approval-action-btn approve" data-late-action="approve" data-clock-key="${esc(x.key)}">Approve</button><button type="button" class="approval-action-btn reject" data-late-action="reject" data-clock-key="${esc(x.key)}">Reject</button></div>`;
+  const attrs=`data-clock-key="${esc(x.key)}" data-clock-row="${esc(x.sheetRow||'')}" data-clock-date="${esc(x.date)}" data-clock-time="${esc(x.time)}" data-clock-staff="${esc(x.staffCode)}" data-clock-type="${esc(x.type)}"`;
+  return `<div class="approval-action-group"><button type="button" class="approval-action-btn approve" data-late-action="approve" ${attrs}>Approve</button><button type="button" class="approval-action-btn reject" data-late-action="reject" ${attrs}>Reject</button></div>`;
 }
 async function submitLateApproval(button){
-  const action=button.dataset.lateAction,key=button.dataset.clockKey;
-  if(!action||!key)return;
-  button.closest('.approval-action-group')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  const action=button.dataset.lateAction;
+  const key=button.dataset.clockKey||'';
+  const row=Number(button.dataset.clockRow||0);
+  if(!action)return;
+  if(!key&&!row){toast('Clock record reference is missing. Please refresh Approval Center.','error');return}
+
+  const group=button.closest('.approval-action-group');
+  const buttons=group?Array.from(group.querySelectorAll('button')):[button];
+  const originalText=button.textContent;
+  buttons.forEach(b=>b.disabled=true);
+  button.textContent=action==='approve'?'Approving...':'Rejecting...';
+
   try{
-    const result=await api('/api/approval-center/late-action',{method:'POST',body:JSON.stringify({key,action})});
+    const payload={
+      key,
+      row,
+      action,
+      date:button.dataset.clockDate||'',
+      time:button.dataset.clockTime||'',
+      staffCode:button.dataset.clockStaff||'',
+      type:button.dataset.clockType||''
+    };
+    const result=await api('/api/approval-center/late-action',{method:'POST',body:JSON.stringify(payload)});
     toast(result.status+' successfully');
     await loadApprovals();
   }catch(e){
     toast(e.message,'error');
-    button.closest('.approval-action-group')?.querySelectorAll('button').forEach(b=>b.disabled=false);
+    button.textContent=originalText;
+    buttons.forEach(b=>b.disabled=false);
   }
 }
 function renderApprovals(){
