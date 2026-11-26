@@ -208,11 +208,12 @@ function approvalByText(action,actor,now=new Date()){
 function approvalPermission(value){
   return String(value||'').trim().toUpperCase();
 }
-function normalizeApprovalItem(r,staffByKey){
+function normalizeApprovalItem(r,staffByKey,sheetRow=null){
   const staffCode=String(r['Staff Name']||'');
   const s=staffByKey.get(staffCode)||{};
   return {
     key:r.Key||'',
+    sheetRow,
     date:r.Date||'',
     time:r.Time||'',
     staffCode,
@@ -448,7 +449,7 @@ async function routeApi(req, res, url) {
     const staffByKey = new Map(staffRows.map(s => [String(s.Key || ''), s]));
     const approverStaff = staffByKey.get(String(user.staffCode || '')) || {};
     const approverPermission = approvalPermission(approverStaff.Permission || user.permission);
-    const allItems = clockRows.slice().reverse().map(r => normalizeApprovalItem(r,staffByKey));
+    const allItems = clockRows.map((r,index) => normalizeApprovalItem(r,staffByKey,index+2)).reverse();
 
     const late = allItems
       .filter(isLateApprovalCandidate)
@@ -477,15 +478,35 @@ async function routeApi(req, res, url) {
 
     return await withClockSaveLock('late-approval:'+key,async()=>{
       const rawRows=await sheets.get('Clock!A:T');
-      const rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[0]||'').trim()===key);
-      if(rowIndex<0) return json(res,404,{error:'Clock record not found.'});
+      const requestedRow=Number(body.row||0);
+      let rowIndex=-1;
+
+      if(key){
+        rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[0]||'').trim()===key);
+      }else if(Number.isInteger(requestedRow)&&requestedRow>=2&&requestedRow<=rawRows.length){
+        rowIndex=requestedRow-1;
+      }
+
+      if(rowIndex<1) return json(res,404,{error:'Clock record not found. Please refresh Approval Center and try again.'});
+
       const sheetRow=rowIndex+1;
       const headers=rawRows[0]||[];
       const rawRecord=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
       const staffRows=await loadStaff();
       const staffByKey=new Map(staffRows.map(s=>[String(s.Key||''),s]));
-      const item=normalizeApprovalItem(rawRecord,staffByKey);
+      const item=normalizeApprovalItem(rawRecord,staffByKey,sheetRow);
       const approverStaff=staffByKey.get(String(user.staffCode||''))||{};
+
+      if(!key){
+        const identityMatches=
+          String(item.date||'')===String(body.date||'') &&
+          String(item.time||'')===String(body.time||'') &&
+          String(item.staffCode||'')===String(body.staffCode||'') &&
+          String(item.type||'')===String(body.type||'');
+        if(!identityMatches){
+          return json(res,409,{error:'This Clock row changed after the page was loaded. Please refresh Approval Center and try again.'});
+        }
+      }
 
       if(!isLateApprovalCandidate(item)){
         const currentApproval=String(item.approval||'').trim();
