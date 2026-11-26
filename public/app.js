@@ -655,6 +655,7 @@ function renderReport(){
     {key:'name',label:'Staff Name'},
     {key:'department',label:'Department'},
     {key:'duration',label:'Duration'},
+    {key:'lateResult',label:'Late Result'},
     {key:'clockIn',label:'In'},
     {key:'lunchOut',label:'Lunch Out'},
     {key:'lunchIn',label:'Lunch In'},
@@ -663,13 +664,13 @@ function renderReport(){
     {key:'otApprovalHours',label:'OT Approval Hours'},
     {key:'otApproval',label:'OT Approval'}
   ];
-  let rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  let rows=(reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.lateResult} ${x.otApproval}`.toLowerCase().includes(q));
   rows=applyReportTableState(rows);
   $('#reportPanelTitle').textContent='Working Hours';
   $('#resultMeta').textContent=`${rows.length} staff records${meta?' · '+meta:''}`;
   $('#reportHead').innerHTML=reportHeader(columns);
-  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.duration||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.otApproval||'—')}</td></tr>`).join('');
-  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="11" class="empty-cell">No working hour records</td></tr>';
+  $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.duration||'—')}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.clockIn||'—')}</td><td>${esc(x.lunchOut||'—')}</td><td>${esc(x.lunchIn||'—')}</td><td>${esc(x.clockOut||'—')}</td><td>${esc(x.actualOTHour||'—')}</td><td>${esc(x.otApprovalHours||'00:00')}</td><td>${esc(x.otApproval||'—')}</td></tr>`).join('');
+  if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="12" class="empty-cell">No working hour records</td></tr>';
 }
 
 function openClockMap(button){

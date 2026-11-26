@@ -381,6 +381,7 @@ async function routeApi(req, res, url) {
           staffCode:x.staffCode,
           name:x.name,
           duration:durationMinutesLabel(duration),
+          lateResult:x.lateMinutes>0?'Late':'',
           clockIn:time12(x.clockIn),
           clockOut:time12(x.clockOut),
           actualOTHour:durationMinutesLabel(actualOT),

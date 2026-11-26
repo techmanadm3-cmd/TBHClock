@@ -196,8 +196,8 @@ body{background:#f3f6fb}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:#10284a;font-size:14px
 }
-.today-card-copy span{display:block;color:#74849a;font-size:12px;margin-top:6px}
-.today-card-copy span b{color:#155ca4;font-size:13px;margin-left:4px}
+.today-card-copy span{display:flex;align-items:baseline;gap:4px;white-space:nowrap;color:#74849a;font-size:12px;margin-top:6px}
+.today-card-copy span b{color:#155ca4;font-size:13px;margin-left:0;white-space:nowrap}
 .empty-card-state{grid-column:1/-1;padding:42px 18px;text-align:center;color:#7d8b9c}
 .report-data-table{min-width:1180px}
 .report-th-inner{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:108px}

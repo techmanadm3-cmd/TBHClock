@@ -146,11 +146,24 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
     const nextEvents = nextDayClock.filter(r => String(r['Staff Name']).trim() === staffKey);
     const firstIn = events.filter(r => r.Type === 'In').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
     const normalOut = events.filter(r => r.Type === 'Out').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
-    const overnightOut = nextEvents.filter(r => r.Type === 'Overnight Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
-    const lunchOut = events.filter(r => r.Type === 'Lunch Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
-    const lunchIn = events.filter(r => r.Type === 'Lunch In').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
+    const dayLunchOut = events.filter(r => r.Type === 'Lunch Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
+    const dayLunchIn = events.filter(r => r.Type === 'Lunch In').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
 
     const autoNightShift = !!firstIn && isAutoNightShift(dateYmd, firstIn.Time);
+    const nightContinuation = autoNightShift
+      ? nextEvents.filter(r => {
+          const mins = parseTime(r.Time);
+          return mins != null && mins <= 12 * 60;
+        })
+      : [];
+    const nightLunchOut = nightContinuation.filter(r => r.Type === 'Lunch Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
+    const nightLunchIn = nightContinuation.filter(r => r.Type === 'Lunch In').sort((a,b) => String(b.Time).localeCompare(String(a.Time)))[0] || null;
+    const nightOut = nightContinuation
+      .filter(r => r.Type === 'Out' || r.Type === 'Overnight Out')
+      .sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
+    const overnightOut = nightContinuation.filter(r => r.Type === 'Overnight Out').sort((a,b) => String(a.Time).localeCompare(String(b.Time)))[0] || null;
+    const lunchOut = autoNightShift ? nightLunchOut : dayLunchOut;
+    const lunchIn = autoNightShift ? nightLunchIn : dayLunchIn;
     const schedule = autoNightShift
       ? {
           source: 'Auto Night Shift',
@@ -166,7 +179,7 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
         }
       : resolveSchedule(staff, dateYmd, scheduleAssignments, scheduleRules, events);
 
-    const selectedOut = autoNightShift ? overnightOut : normalOut;
+    const selectedOut = autoNightShift ? nightOut : normalOut;
     const scheduledStart = schedule?.rule?.['Start Time'] || '';
     const inMin = parseTime(firstIn?.Time);
     const startMin = parseTime(scheduledStart);
@@ -200,7 +213,7 @@ function buildDailyAttendance({dateYmd, staffRows, clockRows, scheduleAssignment
       lateMinutes,
       late: lateMinutes == null ? '' : minutesLabel(lateMinutes),
       status,
-      eventCount: events.length + (autoNightShift && overnightOut ? 1 : 0)
+      eventCount: events.length + (autoNightShift ? nightContinuation.length : 0)
     };
   });
 

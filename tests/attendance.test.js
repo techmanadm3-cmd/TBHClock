@@ -71,6 +71,34 @@ const nightLate=buildDailyAttendance({
 assert.equal(nightLate.items[0].lateMinutes,15);
 assert.equal(nightLate.items[0].status,'Late');
 
+const nightCrossDay=buildDailyAttendance({
+  ...nightBase,
+  clockRows:[
+    {Date:'23/11/2026',Time:'20:00:00','Staff Name':'TBH1',Type:'In'},
+    {Date:'24/11/2026',Time:'01:00:00','Staff Name':'TBH1',Type:'Lunch Out'},
+    {Date:'24/11/2026',Time:'01:30:00','Staff Name':'TBH1',Type:'Lunch In'},
+    {Date:'24/11/2026',Time:'06:05:00','Staff Name':'TBH1',Type:'Out'}
+  ]
+});
+assert.equal(nightCrossDay.items[0].lunchOut,'01:00:00');
+assert.equal(nightCrossDay.items[0].lunchIn,'01:30:00');
+assert.equal(nightCrossDay.items[0].clockOut,'06:05:00');
+assert.equal(nightCrossDay.items[0].clockOutType,'Out');
+assert.equal(nightCrossDay.items[0].clockOutDate,'24/11/2026');
+assert.equal(nightCrossDay.items[0].status,'Complete');
+assert.equal(nightCrossDay.items[0].eventCount,4);
+
+const nightIgnoresNextEveningOut=buildDailyAttendance({
+  ...nightBase,
+  clockRows:[
+    {Date:'23/11/2026',Time:'20:00:00','Staff Name':'TBH1',Type:'In'},
+    {Date:'24/11/2026',Time:'06:00:00','Staff Name':'TBH1',Type:'Overnight Out'},
+    {Date:'24/11/2026',Time:'18:00:00','Staff Name':'TBH1',Type:'Out'}
+  ]
+});
+assert.equal(nightIgnoresNextEveningOut.items[0].clockOut,'06:00:00');
+assert.equal(nightIgnoresNextEveningOut.items[0].clockOutType,'Overnight Out');
+
 console.log('night shift tests PASS');
 
 
