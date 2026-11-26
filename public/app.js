@@ -650,19 +650,37 @@ function closeWorkingDetails(){
 
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}
 function setApprovalTab(tab){approvalTab=tab;$$('[data-approval-tab]').forEach(b=>b.classList.toggle('active',b.dataset.approvalTab===tab));renderApprovals()}
+function lateApprovalActions(x){
+  const status=String(x.approval||'').trim();
+  if(!approvalData.canApprove||status&&status.toLowerCase()!=='pending')return '—';
+  return `<div class="approval-action-group"><button type="button" class="approval-action-btn approve" data-late-action="approve" data-clock-key="${esc(x.key)}">Approve</button><button type="button" class="approval-action-btn reject" data-late-action="reject" data-clock-key="${esc(x.key)}">Reject</button></div>`;
+}
+async function submitLateApproval(button){
+  const action=button.dataset.lateAction,key=button.dataset.clockKey;
+  if(!action||!key)return;
+  button.closest('.approval-action-group')?.querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{
+    const result=await api('/api/approval-center/late-action',{method:'POST',body:JSON.stringify({key,action})});
+    toast(result.status+' successfully');
+    await loadApprovals();
+  }catch(e){
+    toast(e.message,'error');
+    button.closest('.approval-action-group')?.querySelectorAll('button').forEach(b=>b.disabled=false);
+  }
+}
 function renderApprovals(){
   const q=$('#approvalSearch').value.trim().toLowerCase();
   const list=(approvalTab==='late'?approvalData.late:approvalData.adjustments).filter(x=>!q||`${x.name} ${x.staffCode} ${x.department} ${x.type} ${x.remarks}`.toLowerCase().includes(q));
   if(approvalTab==='late'){
     $('#approvalTitle').textContent='Clock Late Approval';
-    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Clock Time</th><th>Late Time</th><th>Late Result</th><th>Approval</th></tr>';
-    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.lateTime||'—')}</td><td>${esc(x.lateResult||'—')}</td><td><span class="approval-status">${esc(x.approval||'Pending')}</span></td></tr>`).join('');
+    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Clock Time</th><th>Late Time</th><th>Total Late (min)</th><th>Late Reason</th><th>Approval</th><th>Action</th></tr>';
+    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.lateTime||'—')}</td><td>${esc(x.totalLate||'—')}</td><td>${esc(x.remarks||'—')}</td><td><span class="approval-status">${esc(x.approval||'Pending')}</span></td><td>${lateApprovalActions(x)}</td></tr>`).join('');
   }else{
     $('#approvalTitle').textContent='Clock Adjustment Approval';
     $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Time</th><th>Remarks</th><th>Approval</th><th>Approval By</th></tr>';
     $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.remarks||'—')}</td><td><span class="approval-status">${esc(x.approval||'Pending')}</span></td><td>${esc(x.approvalBy||'—')}</td></tr>`).join('');
   }
-  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML='<tr><td colspan="8" class="empty-cell">No items</td></tr>';
+  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML=`<tr><td colspan="${approvalTab==='late'?10:8}" class="empty-cell">No items</td></tr>`;
 }
 
 $('#loginBtn').onclick=login;
@@ -693,6 +711,10 @@ $('#refreshBtn').onclick=loadReport;
 $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
+$('#approvalRows').addEventListener('click',e=>{
+  const button=e.target.closest('[data-late-action]');
+  if(button)submitLateApproval(button);
+});
 $('#reportHead').addEventListener('click',e=>{
   const sort=e.target.closest('[data-report-sort]');
   if(sort){cycleReportSort(sort.dataset.reportSort);return}

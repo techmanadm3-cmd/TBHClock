@@ -63,6 +63,18 @@ class GoogleSheetsClient {
     if (!res.ok) throw new Error(`Sheets APPEND ${range} failed ${res.status}: ${await res.text()}`);
     return res.json();
   }
+
+  async update(range, row) {
+    const token = await this.accessToken();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(this.spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ majorDimension: 'ROWS', values: [row] })
+    });
+    if (!res.ok) throw new Error(`Sheets UPDATE ${range} failed ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
 }
 
 module.exports = { GoogleSheetsClient };

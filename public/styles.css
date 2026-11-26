@@ -308,3 +308,10 @@ body{background:#f3f6fb}
   .location-action-row .btn{width:100%;min-height:44px}
   .location-permission-help{padding:12px}
 }
+
+.approval-action-group{display:flex;gap:6px;align-items:center;white-space:nowrap}
+.approval-action-btn{min-height:30px;padding:5px 10px;border-radius:7px;font:inherit;font-size:11px;font-weight:800;cursor:pointer;background:#fff}
+.approval-action-btn.approve{border:1px solid #9bd2ad;color:#21723a}
+.approval-action-btn.reject{border:1px solid #e3a8a8;color:#a33838}
+.approval-action-btn:hover{background:#f6f9fc}
+.approval-action-btn:disabled{opacity:.5;cursor:not-allowed}

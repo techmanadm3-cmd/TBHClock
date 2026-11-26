@@ -184,6 +184,26 @@ function time12(value) {
   hour=hour%12||12;
   return `${hour}:${String(minute).padStart(2,'0')} ${suffix}`;
 }
+function approvalActor(staff,user){
+  return String(
+    staff?.Email ||
+    staff?.['Email Address'] ||
+    staff?.['Work Email'] ||
+    staff?.Username ||
+    user?.name ||
+    user?.staffCode ||
+    'Approver'
+  ).trim();
+}
+function approvalByText(action,actor,now=new Date()){
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{
+    timeZone:'Asia/Kuala_Lumpur',
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true
+  }).formatToParts(now).map(x=>[x.type,x.value]));
+  const prefix=action==='approve'?'Approve by':'Reject by';
+  return `${prefix} ${actor} ${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second} ${String(parts.dayPeriod||'').toUpperCase()}`;
+}
 
 function saveClockImage(image,staffCode,dateYmd,time){
   if(!image||!image.dataUrl) throw new Error('Clock Image is required');
@@ -403,7 +423,34 @@ async function routeApi(req, res, url) {
     };
     const late = items.filter(hasLate).slice(0,500);
     const adjustments = items.filter(x => String(x.adjustment || '').trim().toLowerCase() === 'yes').slice(0,500);
-    return json(res,200,{late,adjustments});
+    return json(res,200,{late,adjustments,canApprove:!isStaff});
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/approval-center/late-action') {
+    if(String(user.permission||'').toUpperCase()==='STAFF') return json(res,403,{error:'You are not allowed to approve or reject Clock Late records.'});
+    const body=await readJson(req);
+    const key=String(body.key||'').trim();
+    const action=String(body.action||'').trim().toLowerCase();
+    if(!key) return json(res,400,{error:'Clock record key is required.'});
+    if(!['approve','reject'].includes(action)) return json(res,400,{error:'Invalid approval action.'});
+
+    return await withClockSaveLock('late-approval:'+key,async()=>{
+      const rawRows=await sheets.get('Clock!A:T');
+      const rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[0]||'').trim()===key);
+      if(rowIndex<0) return json(res,404,{error:'Clock record not found.'});
+      const sheetRow=rowIndex+1;
+      const currentApproval=String(rawRows[rowIndex]?.[8]||'').trim();
+      if(currentApproval && currentApproval.toLowerCase()!=='pending'){
+        return json(res,409,{error:'This Clock Late record is already '+currentApproval+'.'});
+      }
+      const staffRows=await loadStaff();
+      const approverStaff=staffRows.find(s=>String(s.Key||'')===String(user.staffCode||''))||{};
+      const status=action==='approve'?'Approved':'Rejected';
+      const approvalBy=approvalByText(action,approvalActor(approverStaff,user));
+      await sheets.update(`Clock!I${sheetRow}:J${sheetRow}`,[status,approvalBy]);
+      cache.delete('clock');
+      return json(res,200,{ok:true,key,status,approvalBy,row:sheetRow});
+    });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/clock') {

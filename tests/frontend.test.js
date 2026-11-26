@@ -5,6 +5,7 @@ const app = fs.readFileSync('public/app.js','utf8');
 const html = fs.readFileSync('public/index.html','utf8');
 const css = fs.readFileSync('public/styles.css','utf8');
 const server = fs.readFileSync('server.js','utf8');
+const sheetsClient = fs.readFileSync('src/googleSheets.js','utf8');
 const lines = app.split(/\r?\n/).map(x=>x.trim());
 const appLf = app.replace(/\r\n/g,'\n');
 
@@ -142,4 +143,19 @@ assert(server.includes("date:x.lunchOutDate||dateDmy"), 'Working details must us
 assert(server.includes("date:x.clockOutDate||dateDmy"), 'Working details must use actual Out date');
 assert(app.includes("${esc(x.lateResult||'—')}"), 'Working Hours Late Result cell missing');
 assert(css.includes('.today-card-copy span{display:flex;align-items:baseline;gap:4px;white-space:nowrap'), 'Today status/time must stay on one line');
+
+assert(app.includes('<th>Total Late (min)</th>'), 'Clock Late Approval Total Late column missing');
+assert(app.includes('<th>Late Reason</th>'), 'Clock Late Approval Late Reason column missing');
+assert(!app.includes('<th>Late Result</th><th>Approval</th><th>Action</th>'), 'Clock Late Approval Late Result must be removed');
+assert(app.includes("${esc(x.remarks||'—')}"), 'Clock Late Approval Late Reason must use Remarks');
+assert(app.includes('data-late-action="approve"'), 'Clock Late Approval Approve button missing');
+assert(app.includes('data-late-action="reject"'), 'Clock Late Approval Reject button missing');
+assert(app.includes("api('/api/approval-center/late-action'"), 'Clock Late Approval action API call missing');
+assert(server.includes("url.pathname === '/api/approval-center/late-action'"), 'Clock Late Approval action endpoint missing');
+assert(server.includes("String(user.permission||'').toUpperCase()==='STAFF'"), 'Staff must not be allowed to approve/reject');
+assert(server.includes("Clock!I${sheetRow}:J${sheetRow}"), 'Late approval must update Google Sheet columns I and J');
+assert(server.includes("const status=action==='approve'?'Approved':'Rejected'"), 'Late approval status values missing');
+assert(server.includes("const prefix=action==='approve'?'Approve by':'Reject by'"), 'Late approval audit text missing');
+assert(sheetsClient.includes('async update(range, row)'), 'Google Sheets update method missing');
+assert(app.includes("approvalTab==='late'?10:8"), 'Late approval empty row colspan must match 10 columns');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
