@@ -205,6 +205,60 @@ function approvalByText(action,actor,now=new Date()){
   return `${prefix} ${actor} ${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second} ${String(parts.dayPeriod||'').toUpperCase()}`;
 }
 
+function approvalPermission(value){
+  return String(value||'').trim().toUpperCase();
+}
+function normalizeApprovalItem(r,staffByKey){
+  const staffCode=String(r['Staff Name']||'');
+  const s=staffByKey.get(staffCode)||{};
+  return {
+    key:r.Key||'',
+    date:r.Date||'',
+    time:r.Time||'',
+    staffCode,
+    name:r.Name||s['Staff Name']||staffCode,
+    department:r.Department||s.Department1||s.Department||'',
+    type:r.Type||'',
+    remarks:r.Remarks||'',
+    adjustment:r.Adjustment||'',
+    approval:r.Approval||'',
+    approvalBy:r['Approvel By']||'',
+    position:r.Position||s.Position||s['Job Title']||s.Department||'',
+    permission:r.Permission||s.Permission||'',
+    lateTime:r['Late Time']||'',
+    lateResult:r['Late Result']||'',
+    totalLate:r['Total Late']||''
+  };
+}
+function isLateApprovalCandidate(item){
+  const type=String(item.type||'').trim().toUpperCase();
+  const lateResult=String(item.lateResult||'').trim().toUpperCase();
+  const approval=String(item.approval||'').trim();
+  const position=approvalPermission(item.position);
+  return type==='IN' &&
+    lateResult==='LATE' &&
+    !approval &&
+    position!=='HOD' &&
+    position!=='TOP';
+}
+function canAccessLateApproval(user,approverStaff,item){
+  const approverPermission=approvalPermission(approverStaff?.Permission||user?.permission);
+  const approverDepartment=String(approverStaff?.Department1||user?.department||'').trim();
+  const targetDepartment=String(item.department||'').trim();
+  const targetPermission=approvalPermission(item.permission);
+
+  if(approverPermission==='TOP') return true;
+  if(approverPermission==='HOD'){
+    return approverDepartment===targetDepartment &&
+      (targetPermission.includes('HOD')||targetPermission.includes('STAFF'));
+  }
+  if(approverPermission==='STAFF'){
+    return approverDepartment===targetDepartment &&
+      targetPermission.includes('STAFF');
+  }
+  return false;
+}
+
 function saveClockImage(image,staffCode,dateYmd,time){
   if(!image||!image.dataUrl) throw new Error('Clock Image is required');
   const mime=String(image.type||'').toLowerCase();
@@ -392,42 +446,29 @@ async function routeApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
     const [clockRows, staffRows] = await Promise.all([loadClock(), loadStaff()]);
     const staffByKey = new Map(staffRows.map(s => [String(s.Key || ''), s]));
-    const isStaff = String(user.permission || '').toUpperCase() === 'STAFF';
-    const normalize = r => {
-      const staffCode = String(r['Staff Name'] || '');
-      const s = staffByKey.get(staffCode) || {};
-      return {
-        key: r.Key || '',
-        date: r.Date || '',
-        time: r.Time || '',
-        staffCode,
-        name: r.Name || s['Staff Name'] || staffCode,
-        department: r.Department || s.Department1 || s.Department || '',
-        type: r.Type || '',
-        remarks: r.Remarks || '',
-        adjustment: r.Adjustment || '',
-        approval: r.Approval || '',
-        approvalBy: r['Approvel By'] || '',
-        lateTime: r['Late Time'] || '',
-        lateResult: r['Late Result'] || '',
-        totalLate: r['Total Late'] || ''
-      };
-    };
-    let items = clockRows.slice().reverse().map(normalize);
-    if (isStaff) items = items.filter(x => x.staffCode === user.staffCode);
-    const hasLate = x => {
-      const lateText = String(x.lateTime || '').trim();
-      const lateResult = String(x.lateResult || '').trim().toLowerCase();
-      const totalLate = Number(String(x.totalLate || '').replace(/[^0-9.-]/g,'')) || 0;
-      return totalLate > 0 || (!!lateText && lateText !== '0' && lateText !== '00:00' && lateText !== '00:00:00') || ['late','yes','true'].includes(lateResult);
-    };
-    const late = items.filter(hasLate).slice(0,500);
-    const adjustments = items.filter(x => String(x.adjustment || '').trim().toLowerCase() === 'yes').slice(0,500);
-    return json(res,200,{late,adjustments,canApprove:!isStaff});
+    const approverStaff = staffByKey.get(String(user.staffCode || '')) || {};
+    const approverPermission = approvalPermission(approverStaff.Permission || user.permission);
+    const allItems = clockRows.slice().reverse().map(r => normalizeApprovalItem(r,staffByKey));
+
+    const late = allItems
+      .filter(isLateApprovalCandidate)
+      .filter(x => canAccessLateApproval(user,approverStaff,x))
+      .slice(0,500);
+
+    let adjustmentItems = allItems;
+    if (approverPermission === 'STAFF') adjustmentItems = adjustmentItems.filter(x => x.staffCode === user.staffCode);
+    const adjustments = adjustmentItems
+      .filter(x => String(x.adjustment || '').trim().toLowerCase() === 'yes')
+      .slice(0,500);
+
+    return json(res,200,{
+      late,
+      adjustments,
+      canApprove:['TOP','HOD','STAFF'].includes(approverPermission)
+    });
   }
 
   if (req.method === 'POST' && url.pathname === '/api/approval-center/late-action') {
-    if(String(user.permission||'').toUpperCase()==='STAFF') return json(res,403,{error:'You are not allowed to approve or reject Clock Late records.'});
     const body=await readJson(req);
     const key=String(body.key||'').trim();
     const action=String(body.action||'').trim().toLowerCase();
@@ -439,12 +480,22 @@ async function routeApi(req, res, url) {
       const rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[0]||'').trim()===key);
       if(rowIndex<0) return json(res,404,{error:'Clock record not found.'});
       const sheetRow=rowIndex+1;
-      const currentApproval=String(rawRows[rowIndex]?.[8]||'').trim();
-      if(currentApproval && currentApproval.toLowerCase()!=='pending'){
-        return json(res,409,{error:'This Clock Late record is already '+currentApproval+'.'});
-      }
+      const headers=rawRows[0]||[];
+      const rawRecord=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
       const staffRows=await loadStaff();
-      const approverStaff=staffRows.find(s=>String(s.Key||'')===String(user.staffCode||''))||{};
+      const staffByKey=new Map(staffRows.map(s=>[String(s.Key||''),s]));
+      const item=normalizeApprovalItem(rawRecord,staffByKey);
+      const approverStaff=staffByKey.get(String(user.staffCode||''))||{};
+
+      if(!isLateApprovalCandidate(item)){
+        const currentApproval=String(item.approval||'').trim();
+        if(currentApproval) return json(res,409,{error:'This Clock Late record is already '+currentApproval+'.'});
+        return json(res,409,{error:'This record is not eligible for Clock Late Approval.'});
+      }
+      if(!canAccessLateApproval(user,approverStaff,item)){
+        return json(res,403,{error:'You are not allowed to approve or reject this Clock Late record.'});
+      }
+
       const status=action==='approve'?'Approved':'Rejected';
       const approvalBy=approvalByText(action,approvalActor(approverStaff,user));
       await sheets.update(`Clock!I${sheetRow}:J${sheetRow}`,[status,approvalBy]);
