@@ -224,8 +224,24 @@ body{background:#f3f6fb}
 .report-filter-popover.hidden{display:none}
 .report-filter-popover label{display:block;margin:0 0 7px;color:#203b5e;font-size:12px;font-weight:850}
 .report-filter-popover .control{width:100%;min-height:40px}
-.report-filter-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
-.report-filter-actions .btn{min-width:76px;padding:9px 12px}
+#reportFilterSelect{cursor:pointer;background:#fff}
+.clock-staff-group-row td{
+  background:#eef5fc!important;
+  color:#173f6d;
+  border-top:1px solid #cbdced;
+  border-bottom:1px solid #d7e4f0;
+  padding-top:10px!important;
+  padding-bottom:10px!important
+}
+.clock-staff-group-row td strong{display:block;font-size:12px;color:#102f55}
+.clock-staff-group-row td small{display:block;margin-top:2px;font-size:9px;color:#7b8ca1}
+.clock-staff-count{
+  display:inline-flex;align-items:center;min-height:22px;padding:0 8px;border-radius:999px;
+  background:#dceaf8;color:#52708e;font-size:10px;font-weight:800
+}
+.clock-staff-detail-row td:nth-child(2){font-weight:700;color:#173a66}
+.clock-staff-detail-row td:nth-child(3),
+.clock-staff-detail-row td:nth-child(4){background:#fbfdff}
 .department-group-row td{
   background:#eaf2fb!important;
   color:#163e70;

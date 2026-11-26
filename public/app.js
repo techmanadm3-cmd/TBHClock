@@ -464,12 +464,16 @@ function reportSortToken(value,key){
   if(s&&Number.isFinite(n)&&/^[\s$RMrm0-9.,:+-]+$/.test(s))return n;
   return s.toLowerCase();
 }
+function reportFilterMatches(row,key,value){
+  const selected=String(value||'');
+  const actual=String(reportColumnValue(row,key)??'').trim();
+  if(!selected)return true;
+  if(selected==='__BLANK__')return !actual;
+  return actual===selected;
+}
 function applyReportTableState(rows){
   const state=reportPanelState();
-  let out=rows.filter(row=>Object.entries(state.filters||{}).every(([key,value])=>{
-    const needle=String(value||'').trim().toLowerCase();
-    return !needle||String(reportColumnValue(row,key)).toLowerCase().includes(needle);
-  }));
+  let out=rows.filter(row=>Object.entries(state.filters||{}).every(([key,value])=>reportFilterMatches(row,key,value)));
   if(state.sortKey&&state.sortDir){
     const key=state.sortKey,dir=state.sortDir==='desc'?-1:1;
     out=out.map((row,index)=>({row,index})).sort((a,b)=>{
@@ -499,45 +503,75 @@ function cycleReportSort(key){
   closeReportFilter();
   renderReport();
 }
+function reportFilterSourceRows(panel){
+  const q=$('#search').value.trim().toLowerCase();
+  if(panel==='clockmaster'){
+    return (reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
+  }
+  if(panel==='workinghours'){
+    return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  }
+  return [];
+}
+function reportFilterOptions(key){
+  const state=reportPanelState();
+  let rows=reportFilterSourceRows(reportPanel);
+  rows=rows.filter(row=>Object.entries(state.filters||{}).every(([filterKey,value])=>filterKey===key||reportFilterMatches(row,filterKey,value)));
+  const seen=new Map();
+  for(const row of rows){
+    const raw=String(reportColumnValue(row,key)??'').trim();
+    const value=raw||'__BLANK__';
+    const identity=value.toLowerCase();
+    if(!seen.has(identity))seen.set(identity,{value,label:raw||'(Blank)'});
+  }
+  const options=[...seen.values()].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true,sensitivity:'base'}));
+  const selected=String(state.filters?.[key]||'');
+  if(selected&&!options.some(x=>x.value===selected)){
+    options.unshift({value:selected,label:selected==='__BLANK__'?'(Blank)':selected});
+  }
+  return options;
+}
 function openReportFilter(button,key,label){
-  const pop=$('#reportFilterPopover'),input=$('#reportFilterInput');
-  if(!pop||!input)return;
+  const pop=$('#reportFilterPopover'),select=$('#reportFilterSelect');
+  if(!pop||!select)return;
   const state=reportPanelState();
   pop.dataset.key=key;
   pop.dataset.panel=reportPanel;
   $('#reportFilterLabel').textContent='Filter '+label;
-  input.value=state.filters?.[key]||'';
+  select.innerHTML='';
+  const all=document.createElement('option');
+  all.value='';
+  all.textContent='All';
+  select.appendChild(all);
+  for(const item of reportFilterOptions(key)){
+    const option=document.createElement('option');
+    option.value=item.value;
+    option.textContent=item.label;
+    select.appendChild(option);
+  }
+  select.value=state.filters?.[key]||'';
   pop.classList.remove('hidden');
   const r=button.getBoundingClientRect();
   const width=Math.min(300,window.innerWidth-24);
   pop.style.width=width+'px';
   const left=Math.max(12,Math.min(window.innerWidth-width-12,r.right-width));
   pop.style.left=left+'px';
-  pop.style.top=Math.min(window.innerHeight-170,r.bottom+8)+'px';
-  setTimeout(()=>{input.focus();input.select()},0);
+  pop.style.top=Math.min(window.innerHeight-135,r.bottom+8)+'px';
+  setTimeout(()=>select.focus(),0);
 }
 function closeReportFilter(){
   const pop=$('#reportFilterPopover');
   if(pop)pop.classList.add('hidden');
 }
-function applyReportFilter(){
-  const pop=$('#reportFilterPopover'),input=$('#reportFilterInput');
-  if(!pop||!input)return;
+function applyReportFilterSelection(){
+  const pop=$('#reportFilterPopover'),select=$('#reportFilterSelect');
+  if(!pop||!select)return;
   const panel=pop.dataset.panel,key=pop.dataset.key;
   const state=reportTableState[panel];
   if(!state||!key)return closeReportFilter();
-  const value=input.value.trim();
+  const value=select.value;
   if(value)state.filters[key]=value;
   else delete state.filters[key];
-  closeReportFilter();
-  renderReport();
-}
-function clearReportFilter(){
-  const pop=$('#reportFilterPopover');
-  if(!pop)return;
-  const panel=pop.dataset.panel,key=pop.dataset.key;
-  const state=reportTableState[panel];
-  if(state&&key)delete state.filters[key];
   closeReportFilter();
   renderReport();
 }
@@ -579,17 +613,40 @@ function renderReport(){
     ];
     let rows=(reportData.clockMaster||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.type} ${x.lateResult} ${x.dayType}`.toLowerCase().includes(q));
     rows=applyReportTableState(rows);
+    const groups=[];
+    const groupMap=new Map();
+    for(const row of rows){
+      const key=`${row.staffCode||''}|${row.name||''}|${row.department||''}`;
+      let group=groupMap.get(key);
+      if(!group){
+        group={
+          key,
+          name:row.name||row.staffCode||'Unknown Staff',
+          staffCode:row.staffCode||'',
+          department:row.department||'Unassigned',
+          date:row.date||data.date||'',
+          rows:[]
+        };
+        groupMap.set(key,group);
+        groups.push(group);
+      }
+      group.rows.push(row);
+    }
     $('#reportPanelTitle').textContent='Clock Master';
-    $('#resultMeta').textContent=`${rows.length} clock records${meta?' · '+meta:''}`;
+    $('#resultMeta').textContent=`${rows.length} clock records · ${groups.length} staff${meta?' · '+meta:''}`;
     $('#reportHead').innerHTML=reportHeader(columns);
-    $('#reportRows').innerHTML=rows.map(x=>{
-      const loc=x.location;
-      const locationCell=loc
-        ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
-        : '—';
-      return `<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department||'—')}</td><td>${esc(x.type)}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
-    }).join('');
-    if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
+    let body='';
+    for(const group of groups){
+      body+=`<tr class="clock-staff-group-row"><td>${esc(group.date||'—')}</td><td></td><td><strong>${esc(group.name)}</strong>${group.staffCode?`<small>${esc(group.staffCode)}</small>`:''}</td><td>${esc(group.department)}</td><td colspan="4"><span class="clock-staff-count">${group.rows.length} record${group.rows.length===1?'':'s'}</span></td></tr>`;
+      body+=group.rows.map(x=>{
+        const loc=x.location;
+        const locationCell=loc
+          ? `<button type="button" class="map-link-btn" data-clock-map data-lat="${loc.latitude}" data-lng="${loc.longitude}" data-accuracy="${loc.accuracy}" data-name="${esc(x.name)}" data-date="${esc(x.date)}" data-time="${esc(x.time)}" data-type="${esc(x.type)}">View Map</button><small class="map-accuracy">±${Math.round(loc.accuracy)}m</small>`
+          : '—';
+        return `<tr class="clock-staff-detail-row"><td></td><td>${esc(x.time)}</td><td></td><td></td><td>${esc(x.type)}</td><td>${locationCell}</td><td>${esc(x.lateResult||'—')}</td><td>${esc(x.dayType||'—')}</td></tr>`;
+      }).join('');
+    }
+    $('#reportRows').innerHTML=body||'<tr><td colspan="8" class="empty-cell">No clock records</td></tr>';
     return;
   }
 
@@ -682,9 +739,8 @@ $('#reportHead').addEventListener('click',e=>{
   if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
 });
 $('#reportRows').addEventListener('click',e=>{const button=e.target.closest('[data-clock-map]');if(button)openClockMap(button)});
-$('#reportFilterApplyBtn').onclick=applyReportFilter;
-$('#reportFilterClearBtn').onclick=clearReportFilter;
-$('#reportFilterInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyReportFilter();if(e.key==='Escape')closeReportFilter()});
+$('#reportFilterSelect').onchange=applyReportFilterSelection;
+$('#reportFilterSelect').addEventListener('keydown',e=>{if(e.key==='Escape')closeReportFilter()});
 document.addEventListener('click',e=>{
   const pop=$('#reportFilterPopover');
   if(!pop||pop.classList.contains('hidden'))return;
