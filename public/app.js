@@ -709,10 +709,10 @@ function renderApprovals(){
     $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.lateTime||'—')}</td><td>${esc(x.totalLate||'—')}</td><td>${esc(x.remarks||'—')}</td><td>${lateApprovalActions(x)}</td></tr>`).join('');
   }else{
     $('#approvalTitle').textContent='Clock Adjustment Approval';
-    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Time</th><th>Remarks</th><th>Approval By</th><th>Action</th></tr>';
-    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.remarks||'—')}</td><td>${esc(x.approvalBy||'—')}</td><td>${adjustmentApprovalActions(x)}</td></tr>`).join('');
+    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Time</th><th>Remarks</th><th>Action</th></tr>';
+    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.remarks||'—')}</td><td>${adjustmentApprovalActions(x)}</td></tr>`).join('');
   }
-  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML=`<tr><td colspan="${approvalTab==='late'?9:8}" class="empty-cell">No items</td></tr>`;
+  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML=`<tr><td colspan="${approvalTab==='late'?9:7}" class="empty-cell">No items</td></tr>`;
 }
 
 $('#loginBtn').onclick=login;
