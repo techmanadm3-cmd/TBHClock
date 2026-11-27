@@ -245,6 +245,17 @@ function isLateApprovalCandidate(item){
     position!=='HOD' &&
     position!=='TOP';
 }
+function isAdjustmentApprovalCandidate(item){
+  const adjustment=String(item.adjustment||'').trim().toUpperCase();
+  const approval=String(item.approval||'').trim().toUpperCase();
+  return adjustment==='YES' && (!approval || approval==='PENDING');
+}
+function canAccessAdjustmentApproval(user,approverStaff,item){
+  const approverPermission=approvalPermission(approverStaff?.Permission||user?.permission);
+  if(approverPermission==='TOP' || approverPermission==='HOD') return true;
+  if(approverPermission==='STAFF') return String(item.staffCode||'')===String(user?.staffCode||'');
+  return false;
+}
 function canAccessLateApproval(user,approverStaff,item){
   const approverPermission=approvalPermission(approverStaff?.Permission||user?.permission);
   const approverDepartment=String(approverStaff?.Department1||user?.department||'').trim();
@@ -538,6 +549,78 @@ async function routeApi(req, res, url) {
       }
       if(!canAccessLateApproval(user,approverStaff,resolvedItem)){
         return json(res,403,{error:'You are not allowed to approve or reject this Clock Late record.'});
+      }
+
+      const status=action==='approve'?'Approved':'Rejected';
+      const approvalBy=approvalByText(action,approvalActor(approverStaff,user));
+      await sheets.update(`Clock!I${resolvedSheetRow}:J${resolvedSheetRow}`,[status,approvalBy]);
+      cache.delete('clock');
+      return json(res,200,{ok:true,key,status,approvalBy,row:resolvedSheetRow});
+    });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/approval-center/adjustment-action') {
+    const body=await readJson(req);
+    const key=String(body.key||'').trim();
+    const requestedRow=Number(body.row||0);
+    const action=String(body.action||'').trim().toLowerCase();
+    if(!key&&!(Number.isInteger(requestedRow)&&requestedRow>=2)){
+      return json(res,400,{error:'Clock record reference is required. Please refresh Approval Center.'});
+    }
+    if(!['approve','reject'].includes(action)) return json(res,400,{error:'Invalid approval action.'});
+
+    const approvalLockKey=key||('row:'+requestedRow);
+    return await withClockSaveLock('adjustment-approval:'+approvalLockKey,async()=>{
+      const rawRows=await sheets.get('Clock!A:T');
+      let rowIndex=-1;
+
+      if(key){
+        rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[0]||'').trim()===key);
+      }else if(Number.isInteger(requestedRow)&&requestedRow>=2&&requestedRow<=rawRows.length){
+        rowIndex=requestedRow-1;
+      }
+
+      if(rowIndex<1) return json(res,404,{error:'Clock record not found. Please refresh Approval Center and try again.'});
+
+      const headers=rawRows[0]||[];
+      const rawRecord=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
+      const staffRows=await loadStaff();
+      const staffByKey=new Map(staffRows.map(s=>[String(s.Key||''),s]));
+      const approverStaff=staffByKey.get(String(user.staffCode||''))||{};
+
+      if(!key){
+        const matchesIdentity=record=>
+          String(record.Date||'')===String(body.date||'') &&
+          String(record.Time||'')===String(body.time||'') &&
+          String(record['Staff Name']||'')===String(body.staffCode||'') &&
+          String(record.Type||'')===String(body.type||'');
+
+        if(!matchesIdentity(rawRecord)){
+          const identityRows=[];
+          for(let index=1;index<rawRows.length;index++){
+            const candidate=Object.fromEntries(headers.map((header,col)=>[String(header||''),rawRows[index]?.[col]||'']));
+            if(matchesIdentity(candidate)) identityRows.push(index);
+          }
+          if(identityRows.length!==1){
+            return json(res,409,{error:'This Clock row changed after the page was loaded. Please refresh Approval Center and try again.'});
+          }
+          rowIndex=identityRows[0];
+        }
+      }
+
+      const resolvedSheetRow=rowIndex+1;
+      const resolvedRawRecord=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
+      const resolvedItem=normalizeApprovalItem(resolvedRawRecord,staffByKey,resolvedSheetRow);
+
+      if(!isAdjustmentApprovalCandidate(resolvedItem)){
+        const currentApproval=String(resolvedItem.approval||'').trim();
+        if(currentApproval && currentApproval.toLowerCase()!=='pending'){
+          return json(res,409,{error:'This Clock Adjustment record is already '+currentApproval+'.'});
+        }
+        return json(res,409,{error:'This record is not eligible for Clock Adjustment Approval.'});
+      }
+      if(!canAccessAdjustmentApproval(user,approverStaff,resolvedItem)){
+        return json(res,403,{error:'You are not allowed to approve or reject this Clock Adjustment record.'});
       }
 
       const status=action==='approve'?'Approved':'Rejected';
