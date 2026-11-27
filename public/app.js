@@ -650,14 +650,23 @@ function closeWorkingDetails(){
 
 async function loadApprovals(){try{approvalData=await api('/api/approval-center');$('#lateCount').textContent=approvalData.late.length;$('#adjustmentCount').textContent=approvalData.adjustments.length;renderApprovals()}catch(e){toast(e.message,'error')}}
 function setApprovalTab(tab){approvalTab=tab;$$('[data-approval-tab]').forEach(b=>b.classList.toggle('active',b.dataset.approvalTab===tab));renderApprovals()}
+function approvalActionAttrs(x){
+  return `data-clock-key="${esc(x.key)}" data-clock-row="${esc(x.sheetRow||'')}" data-clock-date="${esc(x.date)}" data-clock-time="${esc(x.time)}" data-clock-staff="${esc(x.staffCode)}" data-clock-type="${esc(x.type)}"`;
+}
 function lateApprovalActions(x){
   const status=String(x.approval||'').trim();
   if(!approvalData.canApprove||status&&status.toLowerCase()!=='pending')return '—';
-  const attrs=`data-clock-key="${esc(x.key)}" data-clock-row="${esc(x.sheetRow||'')}" data-clock-date="${esc(x.date)}" data-clock-time="${esc(x.time)}" data-clock-staff="${esc(x.staffCode)}" data-clock-type="${esc(x.type)}"`;
+  const attrs=approvalActionAttrs(x);
   return `<div class="approval-action-group"><button type="button" class="approval-action-btn approve" data-late-action="approve" ${attrs}>Approve</button><button type="button" class="approval-action-btn reject" data-late-action="reject" ${attrs}>Reject</button></div>`;
 }
-async function submitLateApproval(button){
-  const action=button.dataset.lateAction;
+function adjustmentApprovalActions(x){
+  const status=String(x.approval||'').trim();
+  if(!approvalData.canApprove||status&&status.toLowerCase()!=='pending')return '—';
+  const attrs=approvalActionAttrs(x);
+  return `<div class="approval-action-group"><button type="button" class="approval-action-btn approve" data-adjustment-action="approve" ${attrs}>Approve</button><button type="button" class="approval-action-btn reject" data-adjustment-action="reject" ${attrs}>Reject</button></div>`;
+}
+async function submitApprovalAction(button,kind){
+  const action=kind==='late'?button.dataset.lateAction:button.dataset.adjustmentAction;
   const key=button.dataset.clockKey||'';
   const row=Number(button.dataset.clockRow||0);
   if(!action)return;
@@ -679,7 +688,8 @@ async function submitLateApproval(button){
       staffCode:button.dataset.clockStaff||'',
       type:button.dataset.clockType||''
     };
-    const result=await api('/api/approval-center/late-action',{method:'POST',body:JSON.stringify(payload)});
+    const endpoint=kind==='late'?'/api/approval-center/late-action':'/api/approval-center/adjustment-action';
+    const result=await api(endpoint,{method:'POST',body:JSON.stringify(payload)});
     toast(result.status+' successfully');
     await loadApprovals();
   }catch(e){
@@ -688,19 +698,21 @@ async function submitLateApproval(button){
     buttons.forEach(b=>b.disabled=false);
   }
 }
+async function submitLateApproval(button){return submitApprovalAction(button,'late')}
+async function submitAdjustmentApproval(button){return submitApprovalAction(button,'adjustment')}
 function renderApprovals(){
   const q=$('#approvalSearch').value.trim().toLowerCase();
   const list=(approvalTab==='late'?approvalData.late:approvalData.adjustments).filter(x=>!q||`${x.name} ${x.staffCode} ${x.department} ${x.type} ${x.remarks}`.toLowerCase().includes(q));
   if(approvalTab==='late'){
     $('#approvalTitle').textContent='Clock Late Approval';
-    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Clock Time</th><th>Late Time</th><th>Total Late (min)</th><th>Late Reason</th><th>Approval</th><th>Action</th></tr>';
-    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.lateTime||'—')}</td><td>${esc(x.totalLate||'—')}</td><td>${esc(x.remarks||'—')}</td><td><span class="approval-status">${esc(x.approval||'Pending')}</span></td><td>${lateApprovalActions(x)}</td></tr>`).join('');
+    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Clock Time</th><th>Late Time</th><th>Total Late (min)</th><th>Late Reason</th><th>Action</th></tr>';
+    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.lateTime||'—')}</td><td>${esc(x.totalLate||'—')}</td><td>${esc(x.remarks||'—')}</td><td>${lateApprovalActions(x)}</td></tr>`).join('');
   }else{
     $('#approvalTitle').textContent='Clock Adjustment Approval';
-    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Time</th><th>Remarks</th><th>Approval</th><th>Approval By</th></tr>';
-    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.remarks||'—')}</td><td><span class="approval-status">${esc(x.approval||'Pending')}</span></td><td>${esc(x.approvalBy||'—')}</td></tr>`).join('');
+    $('#approvalTableHead').innerHTML='<tr><th>Date</th><th>Staff</th><th>Department</th><th>Type</th><th>Time</th><th>Remarks</th><th>Approval By</th><th>Action</th></tr>';
+    $('#approvalRows').innerHTML=list.map(x=>`<tr><td>${esc(x.date)}</td><td><strong>${esc(x.name)}</strong><small>${esc(x.staffCode)}</small></td><td>${esc(x.department)}</td><td>${esc(x.type)}</td><td>${esc(x.time)}</td><td>${esc(x.remarks||'—')}</td><td>${esc(x.approvalBy||'—')}</td><td>${adjustmentApprovalActions(x)}</td></tr>`).join('');
   }
-  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML=`<tr><td colspan="${approvalTab==='late'?10:8}" class="empty-cell">No items</td></tr>`;
+  if(!$('#approvalRows').innerHTML)$('#approvalRows').innerHTML=`<tr><td colspan="${approvalTab==='late'?9:8}" class="empty-cell">No items</td></tr>`;
 }
 
 $('#loginBtn').onclick=login;
@@ -732,8 +744,10 @@ $('#dateInput').onchange=loadReport;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
 $('#approvalRows').addEventListener('click',e=>{
-  const button=e.target.closest('[data-late-action]');
-  if(button)submitLateApproval(button);
+  const lateButton=e.target.closest('[data-late-action]');
+  if(lateButton){submitLateApproval(lateButton);return}
+  const adjustmentButton=e.target.closest('[data-adjustment-action]');
+  if(adjustmentButton)submitAdjustmentApproval(adjustmentButton);
 });
 $('#reportHead').addEventListener('click',e=>{
   const sort=e.target.closest('[data-report-sort]');
