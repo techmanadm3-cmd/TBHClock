@@ -455,7 +455,19 @@ async function routeApi(req, res, url) {
       })
       .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));
 
-    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours});
+    const staffList=staffRows
+      .filter(s=>String(s.Key||'').trim()||String(s['Staff Name']||'').trim())
+      .map(s=>({
+        staffCode:String(s.Key||'').trim(),
+        name:String(s['Staff Name']||s.Key||'').trim(),
+        department:String(s.Department1||'').trim(),
+        position:String(s['Job Title']||s.Department||'').trim(),
+        status:String(s.Status||'').trim(),
+        joinDate:String(s['Join Date']||'').trim()
+      }))
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{numeric:true,sensitivity:'base'}));
+
+    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours,staffList});
   }
 
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
