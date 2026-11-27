@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},staffData=[],workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},staffData=[],staffEditCurrent=null,workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   working:{sortKey:'',sortDir:'',filters:{}},
   staff:{sortKey:'name',sortDir:'asc',filters:{}}
@@ -627,9 +627,80 @@ function renderStaff(){
   rows=applyReportTableState(rows);
   $('#staffMeta').textContent=`${rows.length} staff records`;
   $('#staffHead').innerHTML=reportHeader(columns);
-  $('#staffRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
+  $('#staffRows').innerHTML=rows.map(x=>`<tr class="staff-edit-row" data-staff-edit="${esc(x.staffCode)}" tabindex="0" title="Open staff details"><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
   if(!$('#staffRows').innerHTML)$('#staffRows').innerHTML='<tr><td colspan="6" class="empty-cell">No staff records</td></tr>';
 }
+function canEditStaffClient(item){
+  const permission=String(currentUser?.permission||'').trim().toUpperCase();
+  if(permission==='TOP')return true;
+  if(permission==='HOD'){
+    return String(currentUser?.department||'').trim()===String(item?.department||'').trim();
+  }
+  return false;
+}
+function setStaffEditorEnabled(enabled){
+  ['staffEditName','staffEditDepartment','staffEditPosition','staffEditStatus','staffEditJoinDate'].forEach(id=>{
+    const el=$('#'+id);
+    el.disabled=!enabled;
+    el.classList.toggle('readonly',!enabled);
+  });
+  $('#saveStaffEditBtn').classList.toggle('hidden',!enabled);
+  $('#staffEditReadonlyNote').classList.toggle('hidden',enabled);
+}
+function openStaffEditor(staffCode){
+  const item=(staffData||[]).find(x=>String(x.staffCode||'')===String(staffCode||''));
+  if(!item)return;
+  staffEditCurrent={...item};
+  $('#staffEditCode').value=item.staffCode||'';
+  $('#staffEditName').value=item.name||'';
+  $('#staffEditDepartment').value=item.department||'';
+  $('#staffEditPosition').value=item.position||'';
+  const status=$('#staffEditStatus');
+  const currentStatus=String(item.status||'Active').trim()||'Active';
+  if(!Array.from(status.options).some(x=>x.value===currentStatus)){
+    status.add(new Option(currentStatus,currentStatus));
+  }
+  status.value=currentStatus;
+  $('#staffEditJoinDate').value=item.joinDate||'';
+  $('#staffEditMeta').textContent=(item.name||item.staffCode||'Staff')+' · '+(item.department||'');
+  setStaffEditorEnabled(canEditStaffClient(item));
+  $('#staffEditModal').classList.remove('hidden');
+}
+function closeStaffEditor(){
+  staffEditCurrent=null;
+  $('#staffEditModal').classList.add('hidden');
+}
+async function saveStaffEditor(){
+  if(!staffEditCurrent)return;
+  const button=$('#saveStaffEditBtn');
+  const payload={
+    staffCode:staffEditCurrent.staffCode,
+    name:$('#staffEditName').value.trim(),
+    department:$('#staffEditDepartment').value.trim(),
+    position:$('#staffEditPosition').value.trim(),
+    status:$('#staffEditStatus').value,
+    joinDate:$('#staffEditJoinDate').value.trim()
+  };
+  if(!payload.name){toast('Staff Name is required.','error');return}
+  if(!payload.department){toast('Department is required.','error');return}
+  try{
+    button.disabled=true;
+    const result=await api('/api/staff-list/update',{method:'POST',body:JSON.stringify(payload)});
+    const index=staffData.findIndex(x=>String(x.staffCode||'')===String(payload.staffCode));
+    if(index>=0)staffData[index]={...staffData[index],...(result.item||payload)};
+    if(String(currentUser?.staffCode||'')===String(payload.staffCode)){
+      currentUser.name=(result.item||payload).name||currentUser.name;
+      currentUser.department=(result.item||payload).department||currentUser.department;
+      $('#userName').textContent=currentUser.name;
+      $('#avatar').textContent=initials(currentUser.name);
+    }
+    closeStaffEditor();
+    renderStaff();
+    toast('Staff record updated');
+  }catch(e){toast(e.message,'error')}
+  finally{button.disabled=false}
+}
+
 function renderReport(){
   if(!data||!reportPanel)return;
   const q=$('#search').value.trim().toLowerCase();
@@ -827,6 +898,20 @@ $('#staffHead').addEventListener('click',e=>{
   const filter=e.target.closest('[data-report-filter]');
   if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
 });
+$('#staffRows').addEventListener('click',e=>{
+  const row=e.target.closest('[data-staff-edit]');
+  if(row)openStaffEditor(row.dataset.staffEdit);
+});
+$('#staffRows').addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-staff-edit]')){
+    e.preventDefault();
+    openStaffEditor(e.target.dataset.staffEdit);
+  }
+});
+$('#closeStaffEditBtn').onclick=closeStaffEditor;
+$('#cancelStaffEditBtn').onclick=closeStaffEditor;
+$('#saveStaffEditBtn').onclick=saveStaffEditor;
+$('#staffEditModal').addEventListener('click',e=>{if(e.target===$('#staffEditModal'))closeStaffEditor()});
 $('#reportRows').addEventListener('click',e=>{
   const row=e.target.closest('[data-working-detail]');
   if(row)openWorkingDetails(row.dataset.workingDetail);
@@ -839,7 +924,11 @@ $('#reportRows').addEventListener('keydown',e=>{
 });
 $('#closeWorkingDetailsBtn').onclick=closeWorkingDetails;
 $('#workingDetailsModal').addEventListener('click',e=>{if(e.target===$('#workingDetailsModal'))closeWorkingDetails()});
-window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#workingDetailsModal').classList.contains('hidden'))closeWorkingDetails()});
+window.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(!$('#staffEditModal').classList.contains('hidden')){closeStaffEditor();return}
+  if(!$('#workingDetailsModal').classList.contains('hidden'))closeWorkingDetails();
+});
 $('#reportFilterSelect').onchange=applyReportFilterSelection;
 $('#reportFilterSelect').addEventListener('keydown',e=>{if(e.key==='Escape')closeReportFilter()});
 document.addEventListener('click',e=>{
