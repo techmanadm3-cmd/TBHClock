@@ -142,7 +142,7 @@ body{background:#f3f6fb}
 @media(max-width:760px){
   :root{--topbar-h:76px}
   .sidebar{
-    top:0;
+    top:var(--topbar-h);
     left:-300px;
     width:286px!important;
     padding:0 14px 24px;
@@ -162,7 +162,7 @@ body{background:#f3f6fb}
   .workspace,.sidebar-collapsed .workspace{padding:100px 12px 24px}
   .page-title-line h1{font-size:25px}
   .page-hero p{font-size:13px}
-  .scrim{inset:0}
+  .scrim{inset:var(--topbar-h) 0 0}
 }
 
 /* Report views: Today cards, Clock Master grouping, Working Hours */
