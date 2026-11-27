@@ -47,7 +47,9 @@ assert(app.includes("$('#saveClockBtn').disabled=desktopBlocked"), 'Desktop Save
 assert(server.includes("if(isDesktopClockRequest(req)) return json(res,403"), 'Desktop clock server guard missing');
 assert(server.includes("body.captureSource!=='camera'"), 'Live camera server validation missing');
 assert(server.includes('DUPLICATE_CLOCK_TYPE'), 'Duplicate type server validation missing');
-assert(server.includes("const uniqueKey=[dateYmd,staff.Key,body.type].join('|')"), 'Date + Staff + Type key missing');
+assert(server.includes("function buildClockKey(date,staffName,type)"), 'Clock key builder missing');
+assert(server.includes("return String(date||'')+String(staffName||'').trim()+String(type||'').trim();"), 'Clock key must be Date + Staff Name + Type with no separators');
+assert(server.includes("const uniqueKey=buildClockKey(date,staff.Key,body.type)"), 'Clock save must use Date + Staff Name + Type key');
 assert(server.includes("rowsToObjects(await sheets.get('Clock!A:T'))"), 'Duplicate validation must read fresh Clock data');
 assert(server.includes('withClockSaveLock(uniqueKey'), 'Duplicate validation must be save-lock protected');
 
@@ -152,8 +154,9 @@ assert(app.includes('data-late-action="approve"'), 'Clock Late Approval Approve 
 assert(app.includes('data-late-action="reject"'), 'Clock Late Approval Reject button missing');
 assert(app.includes("api('/api/approval-center/late-action'"), 'Clock Late Approval action API call missing');
 assert(server.includes("url.pathname === '/api/approval-center/late-action'"), 'Clock Late Approval action endpoint missing');
-assert(server.includes("String(user.permission||'').toUpperCase()==='STAFF'"), 'Staff must not be allowed to approve/reject');
-assert(server.includes("Clock!I${sheetRow}:J${sheetRow}"), 'Late approval must update Google Sheet columns I and J');
+assert(server.includes("function canAccessLateApproval(user,approverStaff,item)"), 'Late approval permission scope helper missing');
+assert(server.includes("if(approverPermission==='STAFF')"), 'Staff approval scope branch missing');
+assert(server.includes("Clock!I${resolvedSheetRow}:J${resolvedSheetRow}"), 'Late approval must update Google Sheet columns I and J');
 assert(server.includes("const status=action==='approve'?'Approved':'Rejected'"), 'Late approval status values missing');
 assert(server.includes("const prefix=action==='approve'?'Approve by':'Reject by'"), 'Late approval audit text missing');
 assert(sheetsClient.includes('async update(range, row)'), 'Google Sheets update method missing');
