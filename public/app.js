@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='today',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   working:{sortKey:'',sortDir:'',filters:{}}
 };
@@ -389,7 +389,7 @@ function setView(view){
   $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
   closeMenu();
   if(view==='clock'&&!isDesktopClockBlocked()&&!clockLocation)captureClockLocation({silent:true});
-  if(view==='report')loadReport();
+  if(view==='report'){showReportMenu();loadReport()}
   if(view==='approval')loadApprovals()
 }
 function isMobile(){return window.matchMedia('(max-width:760px)').matches}
@@ -424,10 +424,17 @@ async function loadReport(){
     renderReport();
   }catch(e){toast(e.message,'error')}
 }
+function showReportMenu(){
+  reportPanel='';
+  closeReportFilter();
+  $('[data-report-panel]').forEach(b=>b.classList.remove('active'));
+  $('#reportDetail').classList.add('hidden');
+}
 function setReportPanel(panel){
   reportPanel=panel;
   closeReportFilter();
-  $$('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
+  $('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
+  $('#reportDetail').classList.remove('hidden');
   renderReport();
 }
 function reportPanelState(){
@@ -570,6 +577,11 @@ function applyReportFilterSelection(){
 }
 function renderReport(){
   if(!data)return;
+  if(!reportPanel){
+    $('#reportDetail').classList.add('hidden');
+    return;
+  }
+  $('#reportDetail').classList.remove('hidden');
   const q=$('#search').value.trim().toLowerCase();
   const meta=[data.date,data.dayType,data.holiday].filter(Boolean).join(' · ');
   $('#todayCards').classList.toggle('hidden',reportPanel!=='today');
