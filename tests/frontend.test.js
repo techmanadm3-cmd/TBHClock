@@ -138,6 +138,11 @@ assert(server.includes("position:String(s['Job Title']||s.Department||'').trim()
 assert(server.includes("status:String(s.Status||'').trim()"), 'Staff List Status mapping missing');
 assert(server.includes("joinDate:String(s['Join Date']||'').trim()"), 'Staff List Join Date mapping missing');
 assert(server.includes("return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours,staffList})"), 'Staff List must be returned by Report API');
+const staffListStart=server.indexOf('const staffList=staffRows');
+const staffListEnd=server.indexOf('return json(res,200,{date,dateDmy,dayType:dayDim.Day||\'\',workingHours,staffList})',staffListStart);
+const staffListBlock=server.slice(staffListStart,staffListEnd);
+assert(staffListStart>=0&&staffListEnd>staffListStart, 'Staff List API mapping block missing');
+assert(!/Password|Wages|Bank Account|Tax No|EPF No/i.test(staffListBlock), 'Staff List API must not expose sensitive Staff fields');
 assert(app.includes('function showReportMenu()'), 'Report first-layer menu reset missing');
 assert(app.includes("document.querySelectorAll('[data-report-panel]').forEach"), 'Report module navigation must use a multi-element selector');
 assert(html.includes('id="reportMenuLayer"'), 'Report menu page layer missing');
