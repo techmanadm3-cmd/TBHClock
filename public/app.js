@@ -533,7 +533,7 @@ function renderActiveTable(){
   else renderReport();
 }
 function reportFilterSourceRows(panel){
-  const q=$('#search').value.trim().toLowerCase();
+  const q=(panel==='staff'?$('#staffSearch').value:$('#search').value).trim().toLowerCase();
   if(panel==='working'){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
   }
