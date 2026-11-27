@@ -121,6 +121,12 @@ assert(!css.includes('.department-group-row'), 'Legacy Department grouping CSS m
 assert(!server.includes('const clockMaster='), 'Clock Master API aggregation must be removed');
 assert(!server.includes('clockMaster,workingHours'), 'Clock Master API response field must be removed');
 assert(html.includes('data-report-panel="today"')&&html.includes('data-report-panel="working"'), 'Today and Working Hours modules must remain');
+assert(app.includes("reportPanel=''"), 'Report must start with no selected data panel');
+assert(app.includes('function showReportMenu()'), 'Report first-layer menu reset missing');
+assert(app.includes("$('#reportDetail').classList.add('hidden')"), 'Report data layer must hide before module selection');
+assert(app.includes("$('#reportDetail').classList.remove('hidden')"), 'Report data layer must open after module selection');
+assert(html.includes('id="reportDetail" class="report-card report-detail hidden"'), 'Report data section must be hidden by default');
+assert(!html.includes('class="module-card active" data-report-panel="today"'), 'Today card must not be active by default');
 assert(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'), 'Report module grid must be two columns after Clock Master removal');
 assert(app.includes("if(x.clockOut)return null"), 'Today must hide staff after Out');
 assert(app.includes("currentStatus:'Back from Lunch'"), 'Today Lunch In status missing');
