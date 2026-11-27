@@ -264,7 +264,7 @@ function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.classNa
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock');if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();$('#detailDateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock');if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){
@@ -410,9 +410,17 @@ function toggleMenu(){
 }
 function closeMenu(){if(isMobile()){$('#sidebar').classList.remove('open');$('#scrim').classList.add('hidden')}}
 
-async function loadReport(){
+function syncReportDate(date){
+  const value=String(date||todayMY());
+  $('#dateInput').value=value;
+  $('#detailDateInput').value=value;
+  return value;
+}
+async function loadReport(sourceDate){
   try{
-    const date=$('#dateInput').value;
+    const detailOpen=!$('#reportDataLayer').classList.contains('hidden');
+    const requested=typeof sourceDate==='string'?sourceDate:(detailOpen?$('#detailDateInput').value:$('#dateInput').value);
+    const date=syncReportDate(requested||todayMY());
     const [daily,detail]=await Promise.all([
       api(`/api/attendance/daily?date=${encodeURIComponent(date)}`),
       api(`/api/report/day?date=${encodeURIComponent(date)}`)
@@ -428,13 +436,17 @@ function showReportMenu(){
   reportPanel='';
   closeReportFilter();
   document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.remove('active'));
-  $('#reportDetail').classList.add('hidden');
+  $('#reportDataLayer').classList.add('hidden');
+  $('#reportMenuLayer').classList.remove('hidden');
 }
 function setReportPanel(panel){
   reportPanel=panel;
   closeReportFilter();
   document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
-  $('#reportDetail').classList.remove('hidden');
+  $('#reportMenuLayer').classList.add('hidden');
+  $('#reportDataLayer').classList.remove('hidden');
+  $('#reportDetailPageTitle').textContent=panel==='working'?'Working Hours':'Today';
+  syncReportDate($('#dateInput').value||todayMY());
   renderReport();
 }
 function reportPanelState(){
@@ -576,12 +588,7 @@ function applyReportFilterSelection(){
   renderReport();
 }
 function renderReport(){
-  if(!data)return;
-  if(!reportPanel){
-    $('#reportDetail').classList.add('hidden');
-    return;
-  }
-  $('#reportDetail').classList.remove('hidden');
+  if(!data||!reportPanel)return;
   const q=$('#search').value.trim().toLowerCase();
   const meta=[data.date,data.dayType,data.holiday].filter(Boolean).join(' · ');
   $('#todayCards').classList.toggle('hidden',reportPanel!=='today');
@@ -751,8 +758,11 @@ $('#locationPermissionHelpBtn').onclick=()=>{
   const open=help.classList.toggle('hidden');
   $('#locationPermissionHelpBtn').textContent=open?'How to Enable Location':'Hide Location Help';
 };
-$('#refreshBtn').onclick=loadReport;
-$('#dateInput').onchange=loadReport;
+$('#refreshBtn').onclick=()=>loadReport($('#dateInput').value);
+$('#dateInput').onchange=()=>loadReport($('#dateInput').value);
+$('#detailRefreshBtn').onclick=()=>loadReport($('#detailDateInput').value);
+$('#detailDateInput').onchange=()=>loadReport($('#detailDateInput').value);
+$('#reportBackBtn').onclick=showReportMenu;
 $('#search').oninput=renderReport;
 $('#approvalSearch').oninput=renderApprovals;
 $('#approvalRows').addEventListener('click',e=>{
