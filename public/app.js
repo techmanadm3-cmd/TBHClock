@@ -386,7 +386,7 @@ function setView(view){
   $('#reportView').classList.toggle('hidden',view!=='report');
   $('#staffView').classList.toggle('hidden',view!=='staff');
   $('#approvalView').classList.toggle('hidden',view!=='approval');
-  $('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   const titles={clock:'Clock',report:'Report',staff:'Staff',approval:'Approval Center'};
   $('#headerTitle').textContent=titles[view]||'TBH HR';
   $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
