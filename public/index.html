@@ -41,7 +41,7 @@
     <nav class="primary-nav">
       <button class="nav-item" data-view="approval" title="Approval Center"><span>✓</span><em>Approval Center</em></button>
       <button class="nav-item" data-view="report" title="Report"><span>▥</span><em>Report</em></button>
-      <button class="nav-item" data-view="staff" title="Staff"><span>ST</span><em>Staff</em></button>
+      <button class="nav-item" data-view="staff" title="Staff"><span class="nav-staff-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M16 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 1c-2.67 0-8 1.34-8 4v2h14v-2c0-2.66-3.33-4-6-4ZM8 14c-3.11 0-6 1.56-6 4v1h4v-2c0-1.13.58-2.12 1.56-2.94A7.8 7.8 0 0 1 8 14Z"/></svg></span><em>Staff</em></button>
       <button class="nav-item active" data-view="clock" title="Clock"><span>◷</span><em>Clock</em></button>
     </nav>
   </aside>
@@ -260,6 +260,45 @@
 <div id="reportFilterPopover" class="report-filter-popover hidden" role="dialog" aria-modal="false" aria-labelledby="reportFilterLabel">
   <label id="reportFilterLabel" for="reportFilterSelect">Filter</label>
   <select id="reportFilterSelect" class="control" aria-label="Filter value"></select>
+</div>
+
+<div id="staffEditModal" class="staff-edit-modal hidden" role="dialog" aria-modal="true" aria-labelledby="staffEditTitle">
+  <div class="staff-edit-card">
+    <button id="closeStaffEditBtn" class="staff-edit-close" type="button" aria-label="Close staff editor">×</button>
+    <div class="staff-edit-head">
+      <div>
+        <h2 id="staffEditTitle">Edit Staff</h2>
+        <p id="staffEditMeta">Staff information</p>
+      </div>
+    </div>
+    <div class="staff-edit-grid">
+      <label for="staffEditCode">Staff ID</label>
+      <input id="staffEditCode" class="control readonly" type="text" readonly>
+
+      <label for="staffEditName">Staff Name</label>
+      <input id="staffEditName" class="control" type="text">
+
+      <label for="staffEditDepartment">Department</label>
+      <input id="staffEditDepartment" class="control" type="text">
+
+      <label for="staffEditPosition">Position</label>
+      <input id="staffEditPosition" class="control" type="text">
+
+      <label for="staffEditStatus">Status</label>
+      <select id="staffEditStatus" class="control">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+
+      <label for="staffEditJoinDate">Join Date</label>
+      <input id="staffEditJoinDate" class="control" type="text" placeholder="DD/MM/YYYY">
+    </div>
+    <div id="staffEditReadonlyNote" class="staff-edit-note hidden">You can view this staff record, but your role cannot edit it.</div>
+    <div class="staff-edit-actions">
+      <button id="cancelStaffEditBtn" class="btn outline" type="button">Cancel</button>
+      <button id="saveStaffEditBtn" class="btn primary" type="button">Save</button>
+    </div>
+  </div>
 </div>
 
 <div id="workingDetailsModal" class="working-details-modal hidden" role="dialog" aria-modal="true" aria-labelledby="workingDetailsTitle">
