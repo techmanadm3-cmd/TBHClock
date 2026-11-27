@@ -211,6 +211,20 @@ function approvalByText(action,actor,now=new Date()){
 function approvalPermission(value){
   return String(value||'').trim().toUpperCase();
 }
+function sheetColumnLetter(index){
+  let n=Number(index)+1,out='';
+  while(n>0){const r=(n-1)%26;out=String.fromCharCode(65+r)+out;n=Math.floor((n-1)/26)}
+  return out;
+}
+function canEditStaffRecord(user,editorStaff,targetStaff){
+  const permission=approvalPermission(editorStaff?.Permission||user?.permission);
+  if(permission==='TOP') return true;
+  if(permission==='HOD'){
+    return String(editorStaff?.Department1||user?.department||'').trim()===
+      String(targetStaff?.Department1||'').trim();
+  }
+  return false;
+}
 function normalizeApprovalItem(r,staffByKey,sheetRow=null){
   const staffCode=String(r['Staff Name']||'');
   const s=staffByKey.get(staffCode)||{};
@@ -390,6 +404,74 @@ async function routeApi(req, res, url) {
       }))
       .sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{numeric:true,sensitivity:'base'}));
     return json(res,200,{items:staffList});
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/staff-list/update') {
+    const body=await readJson(req);
+    const staffCode=String(body.staffCode||'').trim();
+    const name=String(body.name||'').trim();
+    const department=String(body.department||'').trim();
+    const position=String(body.position||'').trim();
+    const status=String(body.status||'').trim();
+    const joinDate=String(body.joinDate||'').trim();
+
+    if(!staffCode) return json(res,400,{error:'Staff ID is required.'});
+    if(!name) return json(res,400,{error:'Staff Name is required.'});
+    if(!department) return json(res,400,{error:'Department is required.'});
+    if(!['ACTIVE','INACTIVE'].includes(status.toUpperCase())) return json(res,400,{error:'Status must be Active or Inactive.'});
+    if(joinDate&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
+      return json(res,400,{error:'Join Date must use DD/MM/YYYY or YYYY-MM-DD.'});
+    }
+
+    const rawRows=await sheets.get('Staff!A:AI');
+    const headers=rawRows[0]||[];
+    const keyIndex=headers.indexOf('Key');
+    const rowIndex=rawRows.findIndex((row,index)=>index>0&&String(row[keyIndex]||'').trim()===staffCode);
+    if(keyIndex<0||rowIndex<1) return json(res,404,{error:'Staff record not found.'});
+
+    const record=Object.fromEntries(headers.map((header,index)=>[String(header||''),rawRows[rowIndex]?.[index]||'']));
+    const editorRows=await loadStaff();
+    const editorStaff=editorRows.find(s=>String(s.Key||'').trim()===String(user.staffCode||'').trim())||{};
+    if(!canEditStaffRecord(user,editorStaff,record)){
+      return json(res,403,{error:'You are not allowed to edit this staff record.'});
+    }
+
+    if(approvalPermission(editorStaff.Permission||user.permission)==='HOD'){
+      const editorDepartment=String(editorStaff.Department1||user.department||'').trim();
+      if(department!==editorDepartment){
+        return json(res,403,{error:'HOD can only keep staff within their own Department.'});
+      }
+    }
+
+    const requiredHeaders=['Staff Name','Department1','Status','Join Date','Job Title'];
+    const missing=requiredHeaders.filter(header=>headers.indexOf(header)<0);
+    if(missing.length) return json(res,500,{error:'Staff sheet is missing required column(s): '+missing.join(', ')});
+
+    const sheetRow=rowIndex+1;
+    const updates=[
+      ['Staff Name',name],
+      ['Department1',department],
+      ['Status',status[0].toUpperCase()+status.slice(1).toLowerCase()],
+      ['Join Date',joinDate],
+      ['Job Title',position]
+    ];
+    for(const [header,value] of updates){
+      const column=sheetColumnLetter(headers.indexOf(header));
+      await sheets.update(`Staff!${column}${sheetRow}`,[value]);
+    }
+    cache.delete('staff');
+
+    return json(res,200,{
+      ok:true,
+      item:{
+        staffCode,
+        name,
+        department,
+        position,
+        status:status[0].toUpperCase()+status.slice(1).toLowerCase(),
+        joinDate
+      }
+    });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/attendance/daily') {
