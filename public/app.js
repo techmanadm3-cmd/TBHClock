@@ -438,6 +438,7 @@ function showReportMenu(){
   document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.remove('active'));
   $('#reportDataLayer').classList.add('hidden');
   $('#reportMenuLayer').classList.remove('hidden');
+  $('#headerTitle').textContent='Report';
 }
 function setReportPanel(panel){
   reportPanel=panel;
@@ -445,7 +446,9 @@ function setReportPanel(panel){
   document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
   $('#reportMenuLayer').classList.add('hidden');
   $('#reportDataLayer').classList.remove('hidden');
-  $('#reportDetailPageTitle').textContent=panel==='working'?'Working Hours':'Today';
+  const title=panel==='working'?'Working Hours':'Today';
+  $('#reportDetailPageTitle').textContent=title;
+  $('#headerTitle').textContent=title;
   syncReportDate($('#dateInput').value||todayMY());
   renderReport();
 }
