@@ -157,6 +157,9 @@ function serializeClockLocation(location, nowMs=Date.now()) {
   const p=normalizeClockLocation(location,nowMs);
   return ['GPS',p.latitude.toFixed(6),p.longitude.toFixed(6),Math.round(p.accuracy),p.capturedAt].join('|');
 }
+function buildClockKey(date,staffName,type) {
+  return String(date||'')+String(staffName||'').trim()+String(type||'').trim();
+}
 function clockMinutes(value) {
   if(!value) return null;
   const m=String(value).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
@@ -582,7 +585,7 @@ async function routeApi(req, res, url) {
     catch(e){return json(res,400,{error:e.message,code:e.code||'LOCATION_REQUIRED'})}
 
     const date=`${dateYmd.slice(8,10)}/${dateYmd.slice(5,7)}/${dateYmd.slice(0,4)}`;
-    const uniqueKey=[dateYmd,staff.Key,body.type].join('|');
+    const uniqueKey=buildClockKey(date,staff.Key,body.type);
 
     return await withClockSaveLock(uniqueKey,async()=>{
       const freshClockRows=rowsToObjects(await sheets.get('Clock!A:T'));
