@@ -149,7 +149,7 @@ assert(html.includes('id="staffEditCode"')&&html.includes('id="staffEditName"')&
 assert(!html.includes('id="staffEditPassword"')&&!html.includes('id="staffEditWages"')&&!html.includes('id="staffEditBank"'), 'Sensitive Staff fields must not be exposed in editor');
 assert(html.includes('id="addStaffBtn" class="btn primary hidden"'), 'TOP-only Add Staff button missing');
 assert(app.includes("{key:'permission',label:'Permission'}"), 'Staff List Permission column missing');
-assert(app.includes("${x.permission||'—'}"), 'Staff List Permission cell missing');
+assert(app.includes("${esc(x.permission||'—')}"), 'Staff List Permission cell missing');
 assert(app.includes('class="staff-edit-row" data-staff-edit='), 'Staff rows must be clickable');
 assert(app.includes('function openStaffEditor(staffCode)'), 'Staff editor open function missing');
 assert(app.includes('function openAddStaff()'), 'Add Staff flow missing');
