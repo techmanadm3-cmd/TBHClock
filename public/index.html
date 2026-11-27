@@ -41,6 +41,7 @@
     <nav class="primary-nav">
       <button class="nav-item" data-view="approval" title="Approval Center"><span>✓</span><em>Approval Center</em></button>
       <button class="nav-item" data-view="report" title="Report"><span>▥</span><em>Report</em></button>
+      <button class="nav-item" data-view="staff" title="Staff"><span>ST</span><em>Staff</em></button>
       <button class="nav-item active" data-view="clock" title="Clock"><span>◷</span><em>Clock</em></button>
     </nav>
   </aside>
@@ -75,7 +76,7 @@
         <div id="clockFormBody">
         <div class="form-grid">
           <label>Date <b>*</b></label>
-          <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"><span>▣</span></div>
+          <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"></div>
 
           <label>Time <b>*</b></label>
           <input id="clockTime" class="control" type="time" step="60">
@@ -195,10 +196,6 @@
               <span class="module-icon worker">◴</span>
               <span><strong>Working Hours</strong><small>Human Resource</small></span>
             </button>
-            <button class="module-card staff-module-card" data-report-panel="staff">
-              <span class="module-icon staff">ST</span>
-              <span><strong>Staff List</strong><small>Human Resource</small></span>
-            </button>
           </div>
         </section>
       </div>
@@ -229,6 +226,18 @@
           </div>
         </section>
       </div>
+    </section>
+
+    <section id="staffView" class="view hidden">
+      <section class="staff-card">
+        <div class="table-head staff-head">
+          <div><h2>Staff List</h2><p id="staffMeta"></p></div>
+          <input id="staffSearch" class="control staff-search" placeholder="Search">
+        </div>
+        <div class="table-wrap staff-table-wrap">
+          <table class="staff-table"><thead id="staffHead"></thead><tbody id="staffRows"></tbody></table>
+        </div>
+      </section>
     </section>
 
     <section id="approvalView" class="view hidden">
