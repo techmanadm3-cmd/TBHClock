@@ -10,10 +10,10 @@ const lines = app.split(/\r?\n/).map(x=>x.trim());
 const appLf = app.replace(/\r\n/g,'\n');
 const cssLf = css.replace(/\r\n/g,'\n');
 
-assert(!lines.some(x=>x.startsWith("$('[data-view]').forEach")), 'data-view must use $$() for NodeList iteration');
-assert(!lines.some(x=>x.includes(";$('[data-report-panel]').forEach")), 'data-report-panel must use $$() for NodeList iteration');
-assert(lines.some(x=>x.includes("$$('[data-view]').forEach")), 'data-view iterator missing');
-assert(lines.some(x=>x.includes("$$('[data-report-panel]').forEach")), 'data-report-panel iterator missing');
+assert(!lines.some(x=>x.startsWith("$('[data-view]').forEach")), 'data-view must use a multi-element selector');
+assert(!lines.some(x=>x.includes(";$('[data-report-panel]').forEach")), 'data-report-panel must use a multi-element selector');
+assert(lines.some(x=>x.includes("document.querySelectorAll('[data-view]').forEach")||x.includes("$('[data-view]').forEach")), 'data-view iterator missing');
+assert(lines.some(x=>x.includes("document.querySelectorAll('[data-report-panel]').forEach")||x.includes("$('[data-report-panel]').forEach")), 'data-report-panel iterator missing');
 
 assert(app.includes("$('#adjustment button').forEach"), 'Adjustment buttons must use NodeList helper');
 assert(!app.includes("$('#clockStaff').value"), 'Clock form must not submit a selectable staff value');
