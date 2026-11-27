@@ -761,7 +761,6 @@ $('#locationPermissionHelpBtn').onclick=()=>{
   const open=help.classList.toggle('hidden');
   $('#locationPermissionHelpBtn').textContent=open?'How to Enable Location':'Hide Location Help';
 };
-$('#refreshBtn').onclick=()=>loadReport($('#dateInput').value);
 $('#dateInput').onchange=()=>loadReport($('#dateInput').value);
 $('#detailRefreshBtn').onclick=()=>loadReport($('#detailDateInput').value);
 $('#detailDateInput').onchange=()=>loadReport($('#detailDateInput').value);
