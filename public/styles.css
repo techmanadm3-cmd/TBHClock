@@ -315,3 +315,14 @@ body{background:#f3f6fb}
 .approval-action-btn.reject{border:1px solid #e3a8a8;color:#a33838}
 .approval-action-btn:hover{background:#f6f9fc}
 .approval-action-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Report second-layer page navigation */
+.report-detail-heading{display:flex;align-items:center;gap:14px}
+.report-detail-heading .page-title-line{gap:0}
+.report-detail-heading p{margin:6px 0 0;color:#536b88;font-style:italic}
+.report-back-btn{width:42px;height:42px;border:1px solid #cbd9e6;border-radius:50%;background:#fff;color:#0b2d5f;font-size:24px;line-height:1;display:grid;place-items:center;cursor:pointer;box-shadow:0 6px 16px #16395b12}
+.report-back-btn:hover{border-color:#308bda;background:#f4f9fe;color:#075aaa}
+@media(max-width:760px){
+  .report-detail-heading{gap:10px}
+  .report-back-btn{width:38px;height:38px;font-size:22px}
+}
