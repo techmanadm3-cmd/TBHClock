@@ -454,8 +454,14 @@ function setReportPanel(panel){
   const title=panel==='working'?'Working Hours':'Today';
   $('#reportDetailPageTitle').textContent=title;
   $('#headerTitle').textContent=title;
-  $('#reportDetailActions').classList.remove('hidden');
+  $('#reportDetailActions').classList.toggle('hidden',panel==='today');
   $('#search').placeholder='Search staff / department';
+  if(panel==='today'){
+    const date=todayMY();
+    syncReportDate(date);
+    loadReport(date);
+    return;
+  }
   syncReportDate($('#dateInput').value||todayMY());
   renderReport();
 }
