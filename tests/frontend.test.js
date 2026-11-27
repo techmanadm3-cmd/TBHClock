@@ -156,8 +156,8 @@ assert(app.includes('data-late-action="reject"'), 'Clock Late Approval Reject bu
 assert(app.includes("'/api/approval-center/late-action'"), 'Clock Late Approval action API call missing');
 assert(server.includes("url.pathname === '/api/approval-center/late-action'"), 'Clock Late Approval action endpoint missing');
 
-assert(app.includes('<th>Remarks</th><th>Approval By</th><th>Action</th>'), 'Clock Adjustment Approval columns must end with Approval By and Action');
-assert(!app.includes('<th>Remarks</th><th>Approval</th><th>Approval By</th>'), 'Clock Adjustment Approval Approval column must be removed');
+assert(app.includes('<th>Remarks</th><th>Action</th>'), 'Clock Adjustment Approval columns must end with Remarks and Action');
+assert(!app.includes('<th>Approval By</th>'), 'Clock Adjustment Approval Approval By column must be removed');
 assert(app.includes('data-adjustment-action="approve"'), 'Clock Adjustment Approval Approve button missing');
 assert(app.includes('data-adjustment-action="reject"'), 'Clock Adjustment Approval Reject button missing');
 assert(app.includes("'/api/approval-center/adjustment-action'"), 'Clock Adjustment Approval action API call missing');
@@ -171,5 +171,5 @@ assert(server.includes("Clock!I${resolvedSheetRow}:J${resolvedSheetRow}"), 'Appr
 assert(server.includes("const status=action==='approve'?'Approved':'Rejected'"), 'Approval status values missing');
 assert(server.includes("const prefix=action==='approve'?'Approve by':'Reject by'"), 'Approval audit text missing');
 assert(sheetsClient.includes('async update(range, row)'), 'Google Sheets update method missing');
-assert(app.includes("approvalTab==='late'?9:8"), 'Approval empty row colspans must match rendered columns');
+assert(app.includes("approvalTab==='late'?9:7"), 'Approval empty row colspans must match rendered columns');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
