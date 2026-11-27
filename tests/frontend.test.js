@@ -123,6 +123,7 @@ assert(!server.includes('clockMaster,workingHours'), 'Clock Master API response 
 assert(html.includes('data-report-panel="today"')&&html.includes('data-report-panel="working"'), 'Today and Working Hours modules must remain');
 assert(app.includes("reportPanel=''"), 'Report must start with no selected data panel');
 assert(app.includes('function showReportMenu()'), 'Report first-layer menu reset missing');
+assert(app.includes("document.querySelectorAll('[data-report-panel]').forEach"), 'Report module navigation must use a multi-element selector');
 assert(app.includes("$('#reportDetail').classList.add('hidden')"), 'Report data layer must hide before module selection');
 assert(app.includes("$('#reportDetail').classList.remove('hidden')"), 'Report data layer must open after module selection');
 assert(html.includes('id="reportDetail" class="report-card report-detail hidden"'), 'Report data section must be hidden by default');
