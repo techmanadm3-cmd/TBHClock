@@ -414,9 +414,13 @@ async function routeApi(req, res, url) {
     if(!staffCode) return json(res,400,{error:'Staff ID is required.'});
     if(!name) return json(res,400,{error:'Staff Name is required.'});
     if(!department) return json(res,400,{error:'Department is required.'});
+    if(!position) return json(res,400,{error:'Position is required.'});
+    if(!permission) return json(res,400,{error:'Permission is required.'});
     if(!['TOP','HOD','STAFF'].includes(permission)) return json(res,400,{error:'Permission must be TOP, HOD or STAFF.'});
+    if(!status) return json(res,400,{error:'Status is required.'});
     if(!['ACTIVE','INACTIVE'].includes(status.toUpperCase())) return json(res,400,{error:'Status must be Active or Inactive.'});
-    if(joinDate&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
+    if(!joinDate) return json(res,400,{error:'Join Date is required.'});
+    if(!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
       return json(res,400,{error:'Join Date must use DD/MM/YYYY or YYYY-MM-DD.'});
     }
 
@@ -484,9 +488,13 @@ async function routeApi(req, res, url) {
     if(!staffCode) return json(res,400,{error:'Staff ID is required.'});
     if(!name) return json(res,400,{error:'Staff Name is required.'});
     if(!department) return json(res,400,{error:'Department is required.'});
+    if(!position) return json(res,400,{error:'Position is required.'});
+    if(!permission) return json(res,400,{error:'Permission is required.'});
     if(!['TOP','HOD','STAFF'].includes(permission)) return json(res,400,{error:'Permission must be TOP, HOD or STAFF.'});
+    if(!status) return json(res,400,{error:'Status is required.'});
     if(!['ACTIVE','INACTIVE'].includes(status.toUpperCase())) return json(res,400,{error:'Status must be Active or Inactive.'});
-    if(joinDate&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
+    if(!joinDate) return json(res,400,{error:'Join Date is required.'});
+    if(!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
       return json(res,400,{error:'Join Date must use DD/MM/YYYY or YYYY-MM-DD.'});
     }
 
@@ -496,7 +504,7 @@ async function routeApi(req, res, url) {
     const missing=requiredHeaders.filter(header=>headers.indexOf(header)<0);
     if(missing.length) return json(res,500,{error:'Staff sheet is missing required column(s): '+missing.join(', ')});
     const keyIndex=headers.indexOf('Key');
-    const duplicate=rawRows.slice(1).some(row=>String(row[keyIndex]||'').trim()===staffCode);
+    const duplicate=rawRows.slice(1).some(row=>String(row[keyIndex]||'').trim().toLowerCase()===staffCode.toLowerCase());
     if(duplicate) return json(res,409,{error:'Staff ID already exists.'});
 
     const valuesByHeader={
