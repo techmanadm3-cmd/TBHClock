@@ -76,10 +76,10 @@
         <div id="clockFormBody">
         <div class="form-grid">
           <label>Date <b>*</b></label>
-          <div class="input-icon-wrap"><input id="clockDate" class="control" type="date"></div>
+          <div class="input-icon-wrap clock-native-shell"><input id="clockDate" class="control" type="date"></div>
 
           <label>Time <b>*</b></label>
-          <input id="clockTime" class="control" type="time" step="60">
+          <div class="input-icon-wrap clock-native-shell"><input id="clockTime" class="control" type="time" step="60"></div>
 
           <label>Staff Name <b>*</b></label>
           <input id="clockStaffName" class="control readonly" type="text" disabled>
@@ -232,7 +232,10 @@
       <section class="staff-card">
         <div class="table-head staff-head">
           <div><h2>Staff List</h2><p id="staffMeta"></p></div>
-          <input id="staffSearch" class="control staff-search" placeholder="Search">
+          <div class="staff-head-actions">
+            <input id="staffSearch" class="control staff-search" placeholder="Search">
+            <button id="addStaffBtn" class="btn primary hidden" type="button">+ Add Staff</button>
+          </div>
         </div>
         <div class="table-wrap staff-table-wrap">
           <table class="staff-table"><thead id="staffHead"></thead><tbody id="staffRows"></tbody></table>
