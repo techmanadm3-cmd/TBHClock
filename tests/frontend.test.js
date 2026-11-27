@@ -125,6 +125,8 @@ assert(app.includes("reportPanel=''"), 'Report must start with no selected data 
 assert(app.includes('function showReportMenu()'), 'Report first-layer menu reset missing');
 assert(app.includes("document.querySelectorAll('[data-report-panel]').forEach"), 'Report module navigation must use a multi-element selector');
 assert(html.includes('id="reportMenuLayer"'), 'Report menu page layer missing');
+assert(!html.includes('<div class="page-title-line"><span class="page-icon square-icon">▥</span><h1>Report</h1></div>'), 'Report first-layer duplicate page title must be removed');
+assert(!html.includes('id="refreshBtn"'), 'Report first-layer Refresh button must be removed');
 assert(html.includes('id="reportDataLayer" class="hidden"'), 'Report detail page layer must be hidden by default');
 assert(html.includes('id="reportBackBtn"'), 'Report detail back button missing');
 assert(html.includes('id="reportDetailPageTitle"'), 'Report detail page title missing');
@@ -137,6 +139,7 @@ assert(app.includes("$('#headerTitle').textContent=title"), 'Report detail must 
 assert(app.includes("$('#reportBackBtn').onclick=showReportMenu"), 'Report back button action missing');
 assert(app.includes('function syncReportDate(date)'), 'Report menu/detail date synchronization missing');
 assert(!html.includes('class="module-card active" data-report-panel="today"'), 'Today card must not be active by default');
+assert(!html.includes('Review clock late and adjustment records.'), 'Approval Center duplicate page hero must be removed');
 assert(css.includes('grid-template-columns:repeat(2,minmax(0,1fr))'), 'Report module grid must be two columns after Clock Master removal');
 assert(app.includes("if(x.clockOut)return null"), 'Today must hide staff after Out');
 assert(app.includes("currentStatus:'Back from Lunch'"), 'Today Lunch In status missing');
@@ -179,6 +182,7 @@ assert(app.includes('data-adjustment-action="reject"'), 'Clock Adjustment Approv
 assert(app.includes("'/api/approval-center/adjustment-action'"), 'Clock Adjustment Approval action API call missing');
 assert(server.includes("url.pathname === '/api/approval-center/adjustment-action'"), 'Clock Adjustment Approval action endpoint missing');
 assert(server.includes('function isAdjustmentApprovalCandidate(item)'), 'Clock Adjustment Approval candidate guard missing');
+assert(server.includes('.filter(isAdjustmentApprovalCandidate)'), 'Completed adjustment approvals must be excluded from Approval Center');
 assert(server.includes('function canAccessAdjustmentApproval(user,approverStaff,item)'), 'Clock Adjustment Approval permission guard missing');
 
 assert(server.includes("function canAccessLateApproval(user,approverStaff,item)"), 'Late approval permission scope helper missing');
