@@ -217,13 +217,7 @@ function sheetColumnLetter(index){
   return out;
 }
 function canEditStaffRecord(user,editorStaff,targetStaff){
-  const permission=approvalPermission(editorStaff?.Permission||user?.permission);
-  if(permission==='TOP') return true;
-  if(permission==='HOD'){
-    return String(editorStaff?.Department1||user?.department||'').trim()===
-      String(targetStaff?.Department1||'').trim();
-  }
-  return false;
+  return approvalPermission(editorStaff?.Permission||user?.permission)==='TOP';
 }
 function normalizeApprovalItem(r,staffByKey,sheetRow=null){
   const staffCode=String(r['Staff Name']||'');
@@ -399,6 +393,7 @@ async function routeApi(req, res, url) {
         name:String(s['Staff Name']||s.Key||'').trim(),
         department:String(s.Department1||'').trim(),
         position:String(s['Job Title']||s.Department||'').trim(),
+        permission:String(s.Permission||'').trim(),
         status:String(s.Status||'').trim(),
         joinDate:String(s['Join Date']||'').trim()
       }))
@@ -412,12 +407,14 @@ async function routeApi(req, res, url) {
     const name=String(body.name||'').trim();
     const department=String(body.department||'').trim();
     const position=String(body.position||'').trim();
+    const permission=String(body.permission||'').trim().toUpperCase();
     const status=String(body.status||'').trim();
     const joinDate=String(body.joinDate||'').trim();
 
     if(!staffCode) return json(res,400,{error:'Staff ID is required.'});
     if(!name) return json(res,400,{error:'Staff Name is required.'});
     if(!department) return json(res,400,{error:'Department is required.'});
+    if(!['TOP','HOD','STAFF'].includes(permission)) return json(res,400,{error:'Permission must be TOP, HOD or STAFF.'});
     if(!['ACTIVE','INACTIVE'].includes(status.toUpperCase())) return json(res,400,{error:'Status must be Active or Inactive.'});
     if(joinDate&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
       return json(res,400,{error:'Join Date must use DD/MM/YYYY or YYYY-MM-DD.'});
@@ -436,14 +433,7 @@ async function routeApi(req, res, url) {
       return json(res,403,{error:'You are not allowed to edit this staff record.'});
     }
 
-    if(approvalPermission(editorStaff.Permission||user.permission)==='HOD'){
-      const editorDepartment=String(editorStaff.Department1||user.department||'').trim();
-      if(department!==editorDepartment){
-        return json(res,403,{error:'HOD can only keep staff within their own Department.'});
-      }
-    }
-
-    const requiredHeaders=['Staff Name','Department1','Status','Join Date','Job Title'];
+    const requiredHeaders=['Staff Name','Department1','Permission','Status','Join Date','Job Title'];
     const missing=requiredHeaders.filter(header=>headers.indexOf(header)<0);
     if(missing.length) return json(res,500,{error:'Staff sheet is missing required column(s): '+missing.join(', ')});
 
@@ -451,6 +441,7 @@ async function routeApi(req, res, url) {
     const updates=[
       ['Staff Name',name],
       ['Department1',department],
+      ['Permission',permission],
       ['Status',status[0].toUpperCase()+status.slice(1).toLowerCase()],
       ['Join Date',joinDate],
       ['Job Title',position]
@@ -468,6 +459,69 @@ async function routeApi(req, res, url) {
         name,
         department,
         position,
+        permission,
+        status:status[0].toUpperCase()+status.slice(1).toLowerCase(),
+        joinDate
+      }
+    });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/staff-list/create') {
+    const body=await readJson(req);
+    const staffCode=String(body.staffCode||'').trim();
+    const name=String(body.name||'').trim();
+    const department=String(body.department||'').trim();
+    const position=String(body.position||'').trim();
+    const permission=String(body.permission||'STAFF').trim().toUpperCase();
+    const status=String(body.status||'Active').trim();
+    const joinDate=String(body.joinDate||'').trim();
+
+    const staffRows=await loadStaff();
+    const editorStaff=staffRows.find(s=>String(s.Key||'').trim()===String(user.staffCode||'').trim())||{};
+    if(approvalPermission(editorStaff.Permission||user.permission)!=='TOP'){
+      return json(res,403,{error:'Only TOP staff can add a new staff record.'});
+    }
+    if(!staffCode) return json(res,400,{error:'Staff ID is required.'});
+    if(!name) return json(res,400,{error:'Staff Name is required.'});
+    if(!department) return json(res,400,{error:'Department is required.'});
+    if(!['TOP','HOD','STAFF'].includes(permission)) return json(res,400,{error:'Permission must be TOP, HOD or STAFF.'});
+    if(!['ACTIVE','INACTIVE'].includes(status.toUpperCase())) return json(res,400,{error:'Status must be Active or Inactive.'});
+    if(joinDate&&!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(joinDate)&&!/^\d{4}-\d{2}-\d{2}$/.test(joinDate)){
+      return json(res,400,{error:'Join Date must use DD/MM/YYYY or YYYY-MM-DD.'});
+    }
+
+    const rawRows=await sheets.get('Staff!A:AI');
+    const headers=rawRows[0]||[];
+    const requiredHeaders=['Key','Staff Name','Department1','Permission','Status','Join Date','Job Title'];
+    const missing=requiredHeaders.filter(header=>headers.indexOf(header)<0);
+    if(missing.length) return json(res,500,{error:'Staff sheet is missing required column(s): '+missing.join(', ')});
+    const keyIndex=headers.indexOf('Key');
+    const duplicate=rawRows.slice(1).some(row=>String(row[keyIndex]||'').trim()===staffCode);
+    if(duplicate) return json(res,409,{error:'Staff ID already exists.'});
+
+    const valuesByHeader={
+      Key:staffCode,
+      'Staff Name':name,
+      Department:department,
+      Department1:department,
+      Permission:permission,
+      Permission1:permission,
+      Status:status[0].toUpperCase()+status.slice(1).toLowerCase(),
+      'Join Date':joinDate,
+      'Job Title':position
+    };
+    const row=headers.map(header=>Object.prototype.hasOwnProperty.call(valuesByHeader,header)?valuesByHeader[header]:'');
+    await sheets.append('Staff!A:AI',row);
+    cache.delete('staff');
+
+    return json(res,200,{
+      ok:true,
+      item:{
+        staffCode,
+        name,
+        department,
+        position,
+        permission,
         status:status[0].toUpperCase()+status.slice(1).toLowerCase(),
         joinDate
       }
