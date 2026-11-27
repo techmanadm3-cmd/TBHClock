@@ -1,6 +1,7 @@
 let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
-  working:{sortKey:'',sortDir:'',filters:{}}
+  working:{sortKey:'',sortDir:'',filters:{}},
+  staff:{sortKey:'name',sortDir:'asc',filters:{}}
 };
 const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
 function todayMY(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
@@ -264,7 +265,7 @@ function toast(msg,type='ok'){const el=$('#toast');el.textContent=msg;el.classNa
 function initials(name){return String(name||'T').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase()}
 async function init(){try{const me=await api('/api/me');await showApp(me.user)}catch{showLogin()}}
 function showLogin(){$('#login').classList.remove('hidden');$('#app').classList.add('hidden')}
-async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();$('#detailDateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView('clock');if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
+async function showApp(user){currentUser=user;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');$('#userName').textContent=user.name;$('#userRole').textContent=user.permission;$('#avatar').textContent=initials(user.name);$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#dateInput').value=todayMY();$('#detailDateInput').value=todayMY();applyClockMode();applyClockDevicePolicy();applySavedSidebarState();await loadClockContext();setView(isMobile()?'clock':'report')}
 async function login(){try{$('#loginMsg').textContent='';const j=await api('/api/login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});await showApp(j.user)}catch(e){$('#loginMsg').textContent=e.message}}
 
 async function loadClockContext(){
@@ -376,7 +377,8 @@ async function saveClock(){
   }catch(e){toast(e.message,'error')}
   finally{btn.classList.remove('loading');applyClockDevicePolicy()}
 }
-function resetClock(){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';clearClockPhoto();clockLocation=null;renderClockLocation();loadClockContext();if(!isDesktopClockBlocked())captureClockLocation({silent:true})}
+function resetClock({refreshLocation=true}={}){setType('In');setAdjustment('No');$('#clockDate').value=todayMY();$('#clockTime').value=timeMY();$('#clockRemarks').value='';clearClockPhoto();clockLocation=null;renderClockLocation();loadClockContext();if(refreshLocation&&!isDesktopClockBlocked())captureClockLocation({silent:true})}
+function cancelClock(){resetClock({refreshLocation:false});setView('report')}
 
 function setView(view){
   if(view!=='clock')stopClockCamera();
@@ -446,9 +448,12 @@ function setReportPanel(panel){
   document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
   $('#reportMenuLayer').classList.add('hidden');
   $('#reportDataLayer').classList.remove('hidden');
-  const title=panel==='working'?'Working Hours':'Today';
+  $('#reportDataLayer').dataset.panel=panel;
+  const title=panel==='working'?'Working Hours':panel==='staff'?'Staff List':'Today';
   $('#reportDetailPageTitle').textContent=title;
   $('#headerTitle').textContent=title;
+  $('#reportDetailActions').classList.toggle('hidden',panel==='staff');
+  $('#search').placeholder=panel==='staff'?'Search staff / department / position / status':'Search staff / department';
   syncReportDate($('#dateInput').value||todayMY());
   renderReport();
 }
@@ -525,6 +530,9 @@ function reportFilterSourceRows(panel){
   const q=$('#search').value.trim().toLowerCase();
   if(panel==='working'){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
+  }
+  if(panel==='staff'){
+    return (reportData.staffList||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
   }
   return [];
 }
@@ -619,6 +627,25 @@ function renderReport(){
         </div>
       </article>`).join('');
     if(!cards.length)$('#todayCards').innerHTML='<div class="empty-card-state">No staff is currently working for this date.</div>';
+    return;
+  }
+
+  if(reportPanel==='staff'){
+    const columns=[
+      {key:'staffCode',label:'Staff ID'},
+      {key:'name',label:'Staff Name'},
+      {key:'department',label:'Department'},
+      {key:'position',label:'Position'},
+      {key:'status',label:'Status'},
+      {key:'joinDate',label:'Join Date'}
+    ];
+    let rows=(reportData.staffList||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
+    rows=applyReportTableState(rows);
+    $('#reportPanelTitle').textContent='Staff List';
+    $('#resultMeta').textContent=`${rows.length} staff records`;
+    $('#reportHead').innerHTML=reportHeader(columns);
+    $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
+    if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="6" class="empty-cell">No staff records</td></tr>';
     return;
   }
 
@@ -750,7 +777,7 @@ $$('#adjustment button').forEach(b=>b.onclick=()=>setAdjustment(b.dataset.value)
 $('#clockDate').onchange=async()=>{if($('#clockDate').value>todayMY()){$('#clockDate').value=todayMY();toast('Future date is not allowed','error')}await loadClockContext()};
 
 $('#saveClockBtn').onclick=saveClock;
-$('#cancelClockBtn').onclick=resetClock;
+$('#cancelClockBtn').onclick=cancelClock;
 $('#openCameraBtn').onclick=openClockCamera;
 $('#capturePhotoBtn').onclick=captureClockPhoto;
 $('#cancelCameraBtn').onclick=()=>{stopClockCamera();$('#cameraIdle').classList.remove('hidden')};
