@@ -334,3 +334,51 @@ body{background:#f3f6fb}
   .report-detail-heading{gap:10px}
   .report-back-btn{width:38px;height:38px;font-size:22px}
 }
+
+/* Standalone Staff view */
+.staff-card{
+  max-width:none;
+  margin:0 auto;
+  background:#fff;
+  border:1px solid #dce5ef;
+  border-radius:16px;
+  box-shadow:0 8px 24px #143a6a0b;
+  overflow:hidden;
+}
+.staff-head{background:#fff}
+.staff-search{max-width:300px}
+.staff-table{min-width:760px}
+.staff-status{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef2f6;color:#53657b;font-size:11px;font-weight:800}
+.staff-status.active{background:#e7f7ec;color:#177245}
+.staff-status.inactive{background:#f2f4f7;color:#667085}
+
+/* Mobile viewport overflow guard */
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .workspace,.view,.clock-card,#clockFormBody,.form-grid,
+  .form-grid>*,.input-icon-wrap,.location-box,.type-grid,
+  .segmented,.upload-box,.camera-live,.camera-preview-wrap,
+  .location-action-row,.form-actions{
+    min-width:0;
+    max-width:100%;
+  }
+  .clock-card{width:100%;overflow:hidden}
+  .form-grid input,.form-grid textarea,.form-grid select,
+  .form-grid .control,.input-icon-wrap,.location-box,
+  .location-map{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+  }
+  .form-grid input[type="date"],
+  .form-grid input[type="time"]{
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    -webkit-min-logical-width:0;
+  }
+  .form-grid textarea{resize:vertical}
+  .staff-card{border-radius:16px}
+  .staff-search{max-width:none;width:100%}
+  .staff-table{min-width:680px}
+}
