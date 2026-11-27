@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},staffData=[],staffEditCurrent=null,workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},staffData=[],staffEditCurrent=null,staffEditMode='edit',workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   working:{sortKey:'',sortDir:'',filters:{}},
   staff:{sortKey:'name',sortDir:'asc',filters:{}}
@@ -538,7 +538,7 @@ function reportFilterSourceRows(panel){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
   }
   if(panel==='staff'){
-    return (staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
+    return (staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.permission} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
   }
   return [];
 }
@@ -609,6 +609,7 @@ async function loadStaffList(){
     const result=await api('/api/staff-list');
     staffData=Array.isArray(result.items)?result.items:[];
     reportPanel='staff';
+    $('#addStaffBtn').classList.toggle('hidden',String(currentUser?.permission||'').trim().toUpperCase()!=='TOP');
     renderStaff();
   }catch(e){toast(e.message,'error')}
 }
@@ -620,26 +621,22 @@ function renderStaff(){
     {key:'name',label:'Staff Name'},
     {key:'department',label:'Department'},
     {key:'position',label:'Position'},
+    {key:'permission',label:'Permission'},
     {key:'status',label:'Status'},
     {key:'joinDate',label:'Join Date'}
   ];
-  let rows=(staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
+  let rows=(staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.permission} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
   rows=applyReportTableState(rows);
   $('#staffMeta').textContent=`${rows.length} staff records`;
   $('#staffHead').innerHTML=reportHeader(columns);
-  $('#staffRows').innerHTML=rows.map(x=>`<tr class="staff-edit-row" data-staff-edit="${esc(x.staffCode)}" tabindex="0" title="Open staff details"><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
-  if(!$('#staffRows').innerHTML)$('#staffRows').innerHTML='<tr><td colspan="6" class="empty-cell">No staff records</td></tr>';
+  $('#staffRows').innerHTML=rows.map(x=>`<tr class="staff-edit-row" data-staff-edit="${esc(x.staffCode)}" tabindex="0" title="Open staff details"><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td>${esc(x.permission||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
+  if(!$('#staffRows').innerHTML)$('#staffRows').innerHTML='<tr><td colspan="7" class="empty-cell">No staff records</td></tr>';
 }
 function canEditStaffClient(item){
-  const permission=String(currentUser?.permission||'').trim().toUpperCase();
-  if(permission==='TOP')return true;
-  if(permission==='HOD'){
-    return String(currentUser?.department||'').trim()===String(item?.department||'').trim();
-  }
-  return false;
+  return String(currentUser?.permission||'').trim().toUpperCase()==='TOP';
 }
 function setStaffEditorEnabled(enabled){
-  ['staffEditName','staffEditDepartment','staffEditPosition','staffEditStatus','staffEditJoinDate'].forEach(id=>{
+  ['staffEditName','staffEditDepartment','staffEditPosition','staffEditPermission','staffEditStatus','staffEditJoinDate'].forEach(id=>{
     const el=$('#'+id);
     el.disabled=!enabled;
     el.classList.toggle('readonly',!enabled);
@@ -650,11 +647,16 @@ function setStaffEditorEnabled(enabled){
 function openStaffEditor(staffCode){
   const item=(staffData||[]).find(x=>String(x.staffCode||'')===String(staffCode||''));
   if(!item)return;
+  staffEditMode='edit';
   staffEditCurrent={...item};
+  $('#staffEditTitle').textContent='Edit Staff';
+  $('#staffEditCode').readOnly=true;
+  $('#staffEditCode').classList.add('readonly');
   $('#staffEditCode').value=item.staffCode||'';
   $('#staffEditName').value=item.name||'';
   $('#staffEditDepartment').value=item.department||'';
   $('#staffEditPosition').value=item.position||'';
+  $('#staffEditPermission').value=String(item.permission||'STAFF').toUpperCase();
   const status=$('#staffEditStatus');
   const currentStatus=String(item.status||'Active').trim()||'Active';
   if(!Array.from(status.options).some(x=>x.value===currentStatus)){
@@ -666,6 +668,27 @@ function openStaffEditor(staffCode){
   setStaffEditorEnabled(canEditStaffClient(item));
   $('#staffEditModal').classList.remove('hidden');
 }
+function openAddStaff(){
+  if(String(currentUser?.permission||'').trim().toUpperCase()!=='TOP'){
+    toast('Only TOP staff can add a new staff record.','error');
+    return;
+  }
+  staffEditMode='add';
+  staffEditCurrent={};
+  $('#staffEditTitle').textContent='Add Staff';
+  $('#staffEditMeta').textContent='Create a new staff record';
+  $('#staffEditCode').readOnly=false;
+  $('#staffEditCode').classList.remove('readonly');
+  $('#staffEditCode').value='';
+  $('#staffEditName').value='';
+  $('#staffEditDepartment').value='';
+  $('#staffEditPosition').value='';
+  $('#staffEditPermission').value='STAFF';
+  $('#staffEditStatus').value='Active';
+  $('#staffEditJoinDate').value='';
+  setStaffEditorEnabled(true);
+  $('#staffEditModal').classList.remove('hidden');
+}
 function closeStaffEditor(){
   staffEditCurrent=null;
   $('#staffEditModal').classList.add('hidden');
@@ -674,29 +697,40 @@ async function saveStaffEditor(){
   if(!staffEditCurrent)return;
   const button=$('#saveStaffEditBtn');
   const payload={
-    staffCode:staffEditCurrent.staffCode,
+    staffCode:$('#staffEditCode').value.trim(),
     name:$('#staffEditName').value.trim(),
     department:$('#staffEditDepartment').value.trim(),
     position:$('#staffEditPosition').value.trim(),
+    permission:$('#staffEditPermission').value,
     status:$('#staffEditStatus').value,
     joinDate:$('#staffEditJoinDate').value.trim()
   };
+  if(!payload.staffCode){toast('Staff ID is required.','error');return}
   if(!payload.name){toast('Staff Name is required.','error');return}
   if(!payload.department){toast('Department is required.','error');return}
   try{
     button.disabled=true;
-    const result=await api('/api/staff-list/update',{method:'POST',body:JSON.stringify(payload)});
+    const endpoint=staffEditMode==='add'?'/api/staff-list/create':'/api/staff-list/update';
+    const result=await api(endpoint,{method:'POST',body:JSON.stringify(payload)});
     const index=staffData.findIndex(x=>String(x.staffCode||'')===String(payload.staffCode));
-    if(index>=0)staffData[index]={...staffData[index],...(result.item||payload)};
+    if(staffEditMode==='add'){
+      staffData.push(result.item||payload);
+      staffData.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),undefined,{numeric:true,sensitivity:'base'}));
+    }else if(index>=0){
+      staffData[index]={...staffData[index],...(result.item||payload)};
+    }
     if(String(currentUser?.staffCode||'')===String(payload.staffCode)){
       currentUser.name=(result.item||payload).name||currentUser.name;
       currentUser.department=(result.item||payload).department||currentUser.department;
+      currentUser.permission=(result.item||payload).permission||currentUser.permission;
       $('#userName').textContent=currentUser.name;
+      $('#userRole').textContent=currentUser.permission;
       $('#avatar').textContent=initials(currentUser.name);
     }
     closeStaffEditor();
     renderStaff();
-    toast('Staff record updated');
+    $('#addStaffBtn').classList.toggle('hidden',String(currentUser?.permission||'').trim().toUpperCase()!=='TOP');
+    toast(staffEditMode==='add'?'Staff record added':'Staff record updated');
   }catch(e){toast(e.message,'error')}
   finally{button.disabled=false}
 }
@@ -910,6 +944,7 @@ $('#staffRows').addEventListener('keydown',e=>{
 });
 $('#closeStaffEditBtn').onclick=closeStaffEditor;
 $('#cancelStaffEditBtn').onclick=closeStaffEditor;
+$('#addStaffBtn').onclick=openAddStaff;
 $('#saveStaffEditBtn').onclick=saveStaffEditor;
 $('#staffEditModal').addEventListener('click',e=>{if(e.target===$('#staffEditModal'))closeStaffEditor()});
 $('#reportRows').addEventListener('click',e=>{
