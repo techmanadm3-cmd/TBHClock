@@ -245,7 +245,15 @@ body{background:#f3f6fb}
 .report-table-block thead th{position:sticky;top:0;z-index:3}
 @media(max-width:760px){
   .today-cards{grid-template-columns:1fr;padding:12px}
-  .today-staff-card{min-height:76px}
+  .today-staff-card{min-height:76px;align-items:flex-start}
+  .today-card-copy{flex:1;min-width:0;padding-top:1px}
+  .today-card-copy strong{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    overflow-wrap:anywhere;
+    line-height:1.35;
+  }
   .report-data-table{min-width:1380px}
   .working-details-modal{padding:10px}
   .working-details-card{width:100%;padding:18px}
