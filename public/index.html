@@ -181,41 +181,59 @@
     </section>
 
     <section id="reportView" class="view hidden">
-      <div class="page-hero report-hero">
-        <div>
-          <div class="page-title-line"><span class="page-icon square-icon">▥</span><h1>Report</h1></div>
-          <p>Human Resource</p>
+      <div id="reportMenuLayer">
+        <div class="page-hero report-hero">
+          <div>
+            <div class="page-title-line"><span class="page-icon square-icon">▥</span><h1>Report</h1></div>
+            <p>Human Resource</p>
+          </div>
+          <div class="report-actions">
+            <input id="dateInput" class="control" type="date">
+            <button id="refreshBtn" class="btn outline">Refresh</button>
+          </div>
         </div>
-        <div class="report-actions">
-          <input id="dateInput" class="control" type="date">
-          <button id="refreshBtn" class="btn outline">Refresh</button>
-        </div>
+
+        <section class="module-section">
+          <div class="section-title">Human Resource</div>
+          <div class="module-grid">
+            <button class="module-card" data-report-panel="today">
+              <span id="todayModuleDay" class="module-icon calendar">24</span>
+              <span><strong>Today</strong><small>Human Resource</small></span>
+            </button>
+            <button class="module-card" data-report-panel="working">
+              <span class="module-icon worker">◴</span>
+              <span><strong>Working Hours</strong><small>Human Resource</small></span>
+            </button>
+          </div>
+        </section>
       </div>
 
-      <section class="module-section">
-        <div class="section-title">Human Resource</div>
-        <div class="module-grid">
-          <button class="module-card" data-report-panel="today">
-            <span id="todayModuleDay" class="module-icon calendar">24</span>
-            <span><strong>Today</strong><small>Human Resource</small></span>
-          </button>
-          <button class="module-card" data-report-panel="working">
-            <span class="module-icon worker">◴</span>
-            <span><strong>Working Hours</strong><small>Human Resource</small></span>
-          </button>
+      <div id="reportDataLayer" class="hidden">
+        <div class="page-hero report-hero report-detail-hero">
+          <div class="report-detail-heading">
+            <button id="reportBackBtn" class="report-back-btn" type="button" aria-label="Back to Report">←</button>
+            <div>
+              <div class="page-title-line"><h1 id="reportDetailPageTitle">Today</h1></div>
+              <p>Human Resource</p>
+            </div>
+          </div>
+          <div class="report-actions">
+            <input id="detailDateInput" class="control" type="date">
+            <button id="detailRefreshBtn" class="btn outline">Refresh</button>
+          </div>
         </div>
-      </section>
 
-      <section id="reportDetail" class="report-card report-detail hidden">
-        <div class="table-head">
-          <div><h2 id="reportPanelTitle">Today</h2><p id="resultMeta"></p></div>
-          <input id="search" class="control" placeholder="Search staff / department">
-        </div>
-        <div id="todayCards" class="today-cards"></div>
-        <div id="reportTableBlock" class="table-wrap report-table-block hidden">
-          <table class="report-data-table"><thead id="reportHead"></thead><tbody id="reportRows"></tbody></table>
-        </div>
-      </section>
+        <section id="reportDetail" class="report-card report-detail">
+          <div class="table-head">
+            <div><h2 id="reportPanelTitle">Today</h2><p id="resultMeta"></p></div>
+            <input id="search" class="control" placeholder="Search staff / department">
+          </div>
+          <div id="todayCards" class="today-cards"></div>
+          <div id="reportTableBlock" class="table-wrap report-table-block hidden">
+            <table class="report-data-table"><thead id="reportHead"></thead><tbody id="reportRows"></tbody></table>
+          </div>
+        </section>
+      </div>
     </section>
 
     <section id="approvalView" class="view hidden">
