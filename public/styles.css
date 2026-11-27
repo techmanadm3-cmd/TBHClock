@@ -408,3 +408,44 @@ body{background:#f3f6fb}
   .staff-edit-actions{position:sticky;bottom:0;background:#fff;margin-left:-16px;margin-right:-16px;margin-bottom:-20px;padding:14px 16px 20px}
   .staff-edit-actions .btn{flex:1}
 }
+
+/* Mobile native Date/Time shell */
+.staff-head-actions{display:flex;align-items:center;gap:10px}
+.staff-head-actions .staff-search{width:min(300px,40vw)}
+@media(max-width:760px){
+  .clock-native-shell{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    overflow:hidden;
+    border:1px solid #cdd9e6;
+    border-radius:9px;
+    background:#fff;
+  }
+  .clock-native-shell:focus-within{
+    border-color:#3c8bd8;
+    box-shadow:0 0 0 3px #0f78d116;
+  }
+  .clock-native-shell .control{
+    display:block;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    min-inline-size:0!important;
+    max-inline-size:100%!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:transparent;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  .clock-native-shell input[type="date"]::-webkit-date-and-time-value,
+  .clock-native-shell input[type="time"]::-webkit-date-and-time-value{
+    min-width:0;
+    text-align:center;
+  }
+  .staff-head-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:12px}
+  .staff-head-actions .staff-search{width:100%;max-width:none;margin-top:0}
+  .staff-head-actions .btn{width:100%}
+}
