@@ -714,6 +714,14 @@ async function saveStaffEditor(){
   if(!payload.staffCode){toast('Staff ID is required.','error');return}
   if(!payload.name){toast('Staff Name is required.','error');return}
   if(!payload.department){toast('Department is required.','error');return}
+  if(!payload.position){toast('Position is required.','error');return}
+  if(!payload.permission){toast('Permission is required.','error');return}
+  if(!payload.status){toast('Status is required.','error');return}
+  if(!payload.joinDate){toast('Join Date is required.','error');return}
+  if(staffEditMode==='add'){
+    const duplicate=(staffData||[]).some(x=>String(x.staffCode||'').trim().toLowerCase()===payload.staffCode.toLowerCase());
+    if(duplicate){toast('Staff ID already exists. Please use a different Staff ID.','error');return}
+  }
   try{
     button.disabled=true;
     const endpoint=staffEditMode==='add'?'/api/staff-list/create':'/api/staff-list/update';
