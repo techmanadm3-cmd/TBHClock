@@ -8,6 +8,7 @@ const server = fs.readFileSync('server.js','utf8');
 const sheetsClient = fs.readFileSync('src/googleSheets.js','utf8');
 const lines = app.split(/\r?\n/).map(x=>x.trim());
 const appLf = app.replace(/\r\n/g,'\n');
+const cssLf = css.replace(/\r\n/g,'\n');
 
 assert(!lines.some(x=>x.startsWith("$('[data-view]').forEach")), 'data-view must use $$() for NodeList iteration');
 assert(!lines.some(x=>x.includes(";$('[data-report-panel]').forEach")), 'data-report-panel must use $$() for NodeList iteration');
@@ -187,7 +188,7 @@ assert(server.includes("date:x.lunchOutDate||dateDmy"), 'Working details must us
 assert(server.includes("date:x.clockOutDate||dateDmy"), 'Working details must use actual Out date');
 assert(app.includes("${esc(x.lateResult||'—')}"), 'Working Hours Late Result cell missing');
 assert(css.includes('.today-card-copy span{display:flex;align-items:baseline;gap:4px;white-space:nowrap'), 'Today status/time must stay on one line');
-assert(css.includes('.today-card-copy strong{\n    white-space:normal;'), 'Mobile Today staff name must allow wrapping');
+assert(cssLf.includes('.today-card-copy strong{\n    white-space:normal;'), 'Mobile Today staff name must allow wrapping');
 assert(css.includes('overflow-wrap:anywhere;'), 'Mobile Today staff name must not clip long names');
 
 assert(app.includes('<th>Total Late (min)</th>'), 'Clock Late Approval Total Late column missing');
