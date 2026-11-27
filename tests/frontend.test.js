@@ -148,17 +148,28 @@ assert(css.includes('.today-card-copy span{display:flex;align-items:baseline;gap
 
 assert(app.includes('<th>Total Late (min)</th>'), 'Clock Late Approval Total Late column missing');
 assert(app.includes('<th>Late Reason</th>'), 'Clock Late Approval Late Reason column missing');
-assert(!app.includes('<th>Late Result</th><th>Approval</th><th>Action</th>'), 'Clock Late Approval Late Result must be removed');
+assert(app.includes('<th>Late Reason</th><th>Action</th>'), 'Clock Late Approval Action must follow Late Reason');
+assert(!app.includes('<th>Late Reason</th><th>Approval</th>'), 'Clock Late Approval Approval column must be removed');
 assert(app.includes("${esc(x.remarks||'—')}"), 'Clock Late Approval Late Reason must use Remarks');
 assert(app.includes('data-late-action="approve"'), 'Clock Late Approval Approve button missing');
 assert(app.includes('data-late-action="reject"'), 'Clock Late Approval Reject button missing');
-assert(app.includes("api('/api/approval-center/late-action'"), 'Clock Late Approval action API call missing');
+assert(app.includes("'/api/approval-center/late-action'"), 'Clock Late Approval action API call missing');
 assert(server.includes("url.pathname === '/api/approval-center/late-action'"), 'Clock Late Approval action endpoint missing');
+
+assert(app.includes('<th>Remarks</th><th>Approval By</th><th>Action</th>'), 'Clock Adjustment Approval columns must end with Approval By and Action');
+assert(!app.includes('<th>Remarks</th><th>Approval</th><th>Approval By</th>'), 'Clock Adjustment Approval Approval column must be removed');
+assert(app.includes('data-adjustment-action="approve"'), 'Clock Adjustment Approval Approve button missing');
+assert(app.includes('data-adjustment-action="reject"'), 'Clock Adjustment Approval Reject button missing');
+assert(app.includes("'/api/approval-center/adjustment-action'"), 'Clock Adjustment Approval action API call missing');
+assert(server.includes("url.pathname === '/api/approval-center/adjustment-action'"), 'Clock Adjustment Approval action endpoint missing');
+assert(server.includes('function isAdjustmentApprovalCandidate(item)'), 'Clock Adjustment Approval candidate guard missing');
+assert(server.includes('function canAccessAdjustmentApproval(user,approverStaff,item)'), 'Clock Adjustment Approval permission guard missing');
+
 assert(server.includes("function canAccessLateApproval(user,approverStaff,item)"), 'Late approval permission scope helper missing');
 assert(server.includes("if(approverPermission==='STAFF')"), 'Staff approval scope branch missing');
-assert(server.includes("Clock!I${resolvedSheetRow}:J${resolvedSheetRow}"), 'Late approval must update Google Sheet columns I and J');
-assert(server.includes("const status=action==='approve'?'Approved':'Rejected'"), 'Late approval status values missing');
-assert(server.includes("const prefix=action==='approve'?'Approve by':'Reject by'"), 'Late approval audit text missing');
+assert(server.includes("Clock!I${resolvedSheetRow}:J${resolvedSheetRow}"), 'Approval actions must update Google Sheet columns I and J');
+assert(server.includes("const status=action==='approve'?'Approved':'Rejected'"), 'Approval status values missing');
+assert(server.includes("const prefix=action==='approve'?'Approve by':'Reject by'"), 'Approval audit text missing');
 assert(sheetsClient.includes('async update(range, row)'), 'Google Sheets update method missing');
-assert(app.includes("approvalTab==='late'?10:8"), 'Late approval empty row colspan must match 10 columns');
+assert(app.includes("approvalTab==='late'?9:8"), 'Approval empty row colspans must match rendered columns');
 console.log('FRONTEND_SELECTOR_TESTS=PASS');
