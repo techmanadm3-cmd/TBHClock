@@ -275,33 +275,33 @@
       </div>
     </div>
     <div class="staff-edit-grid">
-      <label for="staffEditCode">Staff ID</label>
-      <input id="staffEditCode" class="control readonly" type="text" readonly>
+      <label for="staffEditCode">Staff ID <b class="required-star">*</b></label>
+      <input id="staffEditCode" class="control readonly" type="text" required readonly>
 
-      <label for="staffEditName">Staff Name</label>
-      <input id="staffEditName" class="control" type="text">
+      <label for="staffEditName">Staff Name <b class="required-star">*</b></label>
+      <input id="staffEditName" class="control" type="text" required>
 
-      <label for="staffEditDepartment">Department</label>
-      <input id="staffEditDepartment" class="control" type="text">
+      <label for="staffEditDepartment">Department <b class="required-star">*</b></label>
+      <input id="staffEditDepartment" class="control" type="text" required>
 
-      <label for="staffEditPosition">Position</label>
-      <input id="staffEditPosition" class="control" type="text">
+      <label for="staffEditPosition">Position <b class="required-star">*</b></label>
+      <input id="staffEditPosition" class="control" type="text" required>
 
-      <label for="staffEditPermission">Permission</label>
-      <select id="staffEditPermission" class="control">
+      <label for="staffEditPermission">Permission <b class="required-star">*</b></label>
+      <select id="staffEditPermission" class="control" required>
         <option value="TOP">TOP</option>
         <option value="HOD">HOD</option>
         <option value="STAFF">STAFF</option>
       </select>
 
-      <label for="staffEditStatus">Status</label>
-      <select id="staffEditStatus" class="control">
+      <label for="staffEditStatus">Status <b class="required-star">*</b></label>
+      <select id="staffEditStatus" class="control" required>
         <option value="Active">Active</option>
         <option value="Inactive">Inactive</option>
       </select>
 
-      <label for="staffEditJoinDate">Join Date</label>
-      <input id="staffEditJoinDate" class="control" type="text" placeholder="DD/MM/YYYY">
+      <label for="staffEditJoinDate">Join Date <b class="required-star">*</b></label>
+      <input id="staffEditJoinDate" class="control" type="text" placeholder="DD/MM/YYYY" required>
     </div>
     <div id="staffEditReadonlyNote" class="staff-edit-note hidden">You can view this staff record, but your role cannot edit it.</div>
     <div class="staff-edit-actions">
