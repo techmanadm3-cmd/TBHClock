@@ -1,4 +1,4 @@
-let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
+let data=null,currentUser=null,selectedType='In',adjustment='No',clockContext=null,reportPanel='',approvalTab='late',approvalData={late:[],adjustments:[]},reportData={workingHours:[]},staffData=[],workingDetailRows=[],capturedClockImage=null,cameraStream=null,clockLocation=null,clockLocationRequestSeq=0;
 const reportTableState={
   working:{sortKey:'',sortDir:'',filters:{}},
   staff:{sortKey:'name',sortDir:'asc',filters:{}}
@@ -384,14 +384,16 @@ function setView(view){
   if(view!=='clock')stopClockCamera();
   $('#clockView').classList.toggle('hidden',view!=='clock');
   $('#reportView').classList.toggle('hidden',view!=='report');
+  $('#staffView').classList.toggle('hidden',view!=='staff');
   $('#approvalView').classList.toggle('hidden',view!=='approval');
-  $$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-  const titles={clock:'Clock',report:'Report',approval:'Approval Center'};
+  $('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const titles={clock:'Clock',report:'Report',staff:'Staff',approval:'Approval Center'};
   $('#headerTitle').textContent=titles[view]||'TBH HR';
   $('#headerEyebrow').textContent='TBH INDUSTRIES · HUMAN RESOURCES';
   closeMenu();
   if(view==='clock'&&!isDesktopClockBlocked()&&!clockLocation)captureClockLocation({silent:true});
   if(view==='report'){showReportMenu();loadReport()}
+  if(view==='staff'){reportPanel='staff';loadStaffList()}
   if(view==='approval')loadApprovals()
 }
 function isMobile(){return window.matchMedia('(max-width:760px)').matches}
@@ -449,11 +451,11 @@ function setReportPanel(panel){
   $('#reportMenuLayer').classList.add('hidden');
   $('#reportDataLayer').classList.remove('hidden');
   $('#reportDataLayer').dataset.panel=panel;
-  const title=panel==='working'?'Working Hours':panel==='staff'?'Staff List':'Today';
+  const title=panel==='working'?'Working Hours':'Today';
   $('#reportDetailPageTitle').textContent=title;
   $('#headerTitle').textContent=title;
-  $('#reportDetailActions').classList.toggle('hidden',panel==='staff');
-  $('#search').placeholder=panel==='staff'?'Search staff / department / position / status':'Search staff / department';
+  $('#reportDetailActions').classList.remove('hidden');
+  $('#search').placeholder='Search staff / department';
   syncReportDate($('#dateInput').value||todayMY());
   renderReport();
 }
@@ -524,7 +526,11 @@ function cycleReportSort(key){
   else if(state.sortDir==='asc')state.sortDir='desc';
   else{state.sortKey='';state.sortDir=''}
   closeReportFilter();
-  renderReport();
+  renderActiveTable();
+}
+function renderActiveTable(){
+  if(reportPanel==='staff')renderStaff();
+  else renderReport();
 }
 function reportFilterSourceRows(panel){
   const q=$('#search').value.trim().toLowerCase();
@@ -532,7 +538,7 @@ function reportFilterSourceRows(panel){
     return (reportData.workingHours||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.otApproval}`.toLowerCase().includes(q));
   }
   if(panel==='staff'){
-    return (reportData.staffList||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
+    return (staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
   }
   return [];
 }
@@ -596,7 +602,33 @@ function applyReportFilterSelection(){
   if(value)state.filters[key]=value;
   else delete state.filters[key];
   closeReportFilter();
-  renderReport();
+  renderActiveTable();
+}
+async function loadStaffList(){
+  try{
+    const result=await api('/api/staff-list');
+    staffData=Array.isArray(result.items)?result.items:[];
+    reportPanel='staff';
+    renderStaff();
+  }catch(e){toast(e.message,'error')}
+}
+function renderStaff(){
+  reportPanel='staff';
+  const q=$('#staffSearch').value.trim().toLowerCase();
+  const columns=[
+    {key:'staffCode',label:'Staff ID'},
+    {key:'name',label:'Staff Name'},
+    {key:'department',label:'Department'},
+    {key:'position',label:'Position'},
+    {key:'status',label:'Status'},
+    {key:'joinDate',label:'Join Date'}
+  ];
+  let rows=(staffData||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
+  rows=applyReportTableState(rows);
+  $('#staffMeta').textContent=`${rows.length} staff records`;
+  $('#staffHead').innerHTML=reportHeader(columns);
+  $('#staffRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
+  if(!$('#staffRows').innerHTML)$('#staffRows').innerHTML='<tr><td colspan="6" class="empty-cell">No staff records</td></tr>';
 }
 function renderReport(){
   if(!data||!reportPanel)return;
@@ -627,25 +659,6 @@ function renderReport(){
         </div>
       </article>`).join('');
     if(!cards.length)$('#todayCards').innerHTML='<div class="empty-card-state">No staff is currently working for this date.</div>';
-    return;
-  }
-
-  if(reportPanel==='staff'){
-    const columns=[
-      {key:'staffCode',label:'Staff ID'},
-      {key:'name',label:'Staff Name'},
-      {key:'department',label:'Department'},
-      {key:'position',label:'Position'},
-      {key:'status',label:'Status'},
-      {key:'joinDate',label:'Join Date'}
-    ];
-    let rows=(reportData.staffList||[]).filter(x=>!q||`${x.staffCode} ${x.name} ${x.department} ${x.position} ${x.status} ${x.joinDate}`.toLowerCase().includes(q));
-    rows=applyReportTableState(rows);
-    $('#reportPanelTitle').textContent='Staff List';
-    $('#resultMeta').textContent=`${rows.length} staff records`;
-    $('#reportHead').innerHTML=reportHeader(columns);
-    $('#reportRows').innerHTML=rows.map(x=>`<tr><td>${esc(x.staffCode||'—')}</td><td><strong>${esc(x.name||'—')}</strong></td><td>${esc(x.department||'—')}</td><td>${esc(x.position||'—')}</td><td><span class="staff-status ${esc(String(x.status||'').toLowerCase())}">${esc(x.status||'—')}</span></td><td>${esc(x.joinDate||'—')}</td></tr>`).join('');
-    if(!$('#reportRows').innerHTML)$('#reportRows').innerHTML='<tr><td colspan="6" class="empty-cell">No staff records</td></tr>';
     return;
   }
 
@@ -793,6 +806,7 @@ $('#detailRefreshBtn').onclick=()=>loadReport($('#detailDateInput').value);
 $('#detailDateInput').onchange=()=>loadReport($('#detailDateInput').value);
 $('#reportBackBtn').onclick=showReportMenu;
 $('#search').oninput=renderReport;
+$('#staffSearch').oninput=renderStaff;
 $('#approvalSearch').oninput=renderApprovals;
 $('#approvalRows').addEventListener('click',e=>{
   const lateButton=e.target.closest('[data-late-action]');
@@ -801,6 +815,13 @@ $('#approvalRows').addEventListener('click',e=>{
   if(adjustmentButton)submitAdjustmentApproval(adjustmentButton);
 });
 $('#reportHead').addEventListener('click',e=>{
+  const sort=e.target.closest('[data-report-sort]');
+  if(sort){cycleReportSort(sort.dataset.reportSort);return}
+  const filter=e.target.closest('[data-report-filter]');
+  if(filter){openReportFilter(filter,filter.dataset.reportFilter,filter.dataset.reportLabel||'Column')}
+});
+$('#staffHead').addEventListener('click',e=>{
+  reportPanel='staff';
   const sort=e.target.closest('[data-report-sort]');
   if(sort){cycleReportSort(sort.dataset.reportSort);return}
   const filter=e.target.closest('[data-report-filter]');
