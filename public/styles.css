@@ -449,3 +449,12 @@ body{background:#f3f6fb}
   .staff-head-actions .staff-search{width:100%;max-width:none;margin-top:0}
   .staff-head-actions .btn{width:100%}
 }
+
+.required-star{color:#e31d2b;font-weight:900}
+
+/* Mobile sidebar above header */
+@media(max-width:760px){
+  .sidebar{z-index:160}
+  .scrim{z-index:150}
+  .topbar{z-index:100}
+}
