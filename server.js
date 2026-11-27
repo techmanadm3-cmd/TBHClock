@@ -376,6 +376,22 @@ async function routeApi(req, res, url) {
     });
   }
 
+  if (req.method === 'GET' && url.pathname === '/api/staff-list') {
+    const staffRows=await loadStaff();
+    const staffList=staffRows
+      .filter(s=>String(s.Key||'').trim()||String(s['Staff Name']||'').trim())
+      .map(s=>({
+        staffCode:String(s.Key||'').trim(),
+        name:String(s['Staff Name']||s.Key||'').trim(),
+        department:String(s.Department1||'').trim(),
+        position:String(s['Job Title']||s.Department||'').trim(),
+        status:String(s.Status||'').trim(),
+        joinDate:String(s['Join Date']||'').trim()
+      }))
+      .sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{numeric:true,sensitivity:'base'}));
+    return json(res,200,{items:staffList});
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/attendance/daily') {
     const date = url.searchParams.get('date') || new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
     const [staffRows, clockRows, dateDimRows, scheduleRules, scheduleAssignments] = await Promise.all([loadStaff(),loadClock(),loadDateDim(),loadScheduleRules(),loadStaffSchedule()]);
@@ -455,19 +471,7 @@ async function routeApi(req, res, url) {
       })
       .sort((a,b)=>(a.department||'').localeCompare(b.department||'') || (a.name||'').localeCompare(b.name||''));
 
-    const staffList=staffRows
-      .filter(s=>String(s.Key||'').trim()||String(s['Staff Name']||'').trim())
-      .map(s=>({
-        staffCode:String(s.Key||'').trim(),
-        name:String(s['Staff Name']||s.Key||'').trim(),
-        department:String(s.Department1||'').trim(),
-        position:String(s['Job Title']||s.Department||'').trim(),
-        status:String(s.Status||'').trim(),
-        joinDate:String(s['Join Date']||'').trim()
-      }))
-      .sort((a,b)=>(a.name||'').localeCompare(b.name||'',undefined,{numeric:true,sensitivity:'base'}));
-
-    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours,staffList});
+    return json(res,200,{date,dateDmy,dayType:dayDim.Day||'',workingHours});
   }
 
   if (req.method === 'GET' && url.pathname === '/api/approval-center') {
