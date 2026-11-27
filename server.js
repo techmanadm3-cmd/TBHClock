@@ -477,7 +477,7 @@ async function routeApi(req, res, url) {
     let adjustmentItems = allItems;
     if (approverPermission === 'STAFF') adjustmentItems = adjustmentItems.filter(x => x.staffCode === user.staffCode);
     const adjustments = adjustmentItems
-      .filter(x => String(x.adjustment || '').trim().toLowerCase() === 'yes')
+      .filter(isAdjustmentApprovalCandidate)
       .slice(0,500);
 
     return json(res,200,{
