@@ -427,13 +427,13 @@ async function loadReport(){
 function showReportMenu(){
   reportPanel='';
   closeReportFilter();
-  $('[data-report-panel]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.remove('active'));
   $('#reportDetail').classList.add('hidden');
 }
 function setReportPanel(panel){
   reportPanel=panel;
   closeReportFilter();
-  $('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
+  document.querySelectorAll('[data-report-panel]').forEach(b=>b.classList.toggle('active',b.dataset.reportPanel===panel));
   $('#reportDetail').classList.remove('hidden');
   renderReport();
 }
